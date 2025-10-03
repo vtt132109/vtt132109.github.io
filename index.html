@@ -9,16 +9,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Chosen Palette: Calm Harmony -->
-    <!-- Application Structure Plan: The application is designed as a single-page, top-down narrative, guiding the user from a broad overview to specific details. It starts with the university (HCMUTE), narrows down to the faculty (FEEE), and then focuses on the specific major (ECET), culminating in a summary video. This hierarchical structure is intuitive for prospective students or anyone seeking information, creating a logical and easy-to-follow discovery path. Key interactions include smooth scrolling, content tabs for detailed information, and an interactive chart to visualize curriculum data, enhancing engagement without overwhelming the user. -->
-    <!-- Visualization & Content Choices: 
-        - Report Info: General facts about HCMUTE. Goal: Inform. Presentation: Icon-based info cards. Interaction: Hover effects. Justification: Provides quick, digestible key metrics about the university.
-        - Report Info: Relationship between FEEE and ECET. Goal: Organize. Presentation: A simple descriptive flow. Interaction: Smooth scroll links. Justification: Clearly shows the organizational structure.
-        - Report Info: Details of the ECET program. Goal: Compare & Inform. Presentation: Tabbed interface for curriculum, careers, and facilities. Interaction: Clicking tabs to switch content. Justification: Organizes a large amount of information neatly, allowing users to explore based on interest.
-        - Report Info: ECET curriculum structure. Goal: Compare. Viz Method: Bar Chart. Interaction: Tooltips on hover. Justification: Visually compares the weight of different specializations, making it easier to understand the program's focus. Library: Chart.js.
-        - Report Info: Final summary. Goal: Inform. Presentation: Embedded video. Interaction: Standard video controls. Justification: Provides a dynamic and engaging conclusion to the presentation.
-    -->
-    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <style>
         body {
             font-family: 'Be Vietnam Pro', sans-serif;
@@ -80,10 +70,10 @@
                 </div>
             </div>
             <div id="mobile-menu" class="hidden md:hidden mt-4 flex flex-col space-y-2">
-                 <a href="#hcmute" class="nav-link text-center py-2">HCMUTE</a>
-                 <a href="#feee" class="nav-link text-center py-2">Khoa Điện - Điện tử</a>
-                 <a href="#ecet" class="nav-link text-center py-2">Ngành ĐTVT</a>
-                 <a href="#video" class="nav-link text-center py-2">Video</a>
+               <a href="#hcmute" class="nav-link text-center py-2">HCMUTE</a>
+               <a href="#feee" class="nav-link text-center py-2">Khoa Điện - Điện tử</a>
+               <a href="#ecet" class="nav-link text-center py-2">Ngành ĐTVT</a>
+               <a href="#video" class="nav-link text-center py-2">Video</a>
             </div>
         </nav>
     </header>
@@ -160,16 +150,16 @@
                         <div id="tab-chuong-trinh" class="tab-pane active">
                             <p class="text-center text-gray-600 mb-6">Chương trình đào tạo được xây dựng theo các định hướng chuyên sâu, đáp ứng nhu cầu đa dạng của thị trường lao động. Dưới đây là biểu đồ phân bổ số lượng tín chỉ chuyên ngành theo các hướng chính.</p>
                              <div class="chart-container">
-                                <canvas id="ecetChart"></canvas>
+                                 <canvas id="ecetChart"></canvas>
                             </div>
                         </div>
                         <div id="tab-co-hoi" class="tab-pane hidden">
                              <ul class="space-y-4 text-gray-700">
-                                <li class="flex items-start"><span class="text-[#D35400] mr-3 mt-1">✓</span> <span><b>Kỹ sư thiết kế vi mạch (IC Design):</b> Làm việc tại các công ty hàng đầu như Synopsys, Cadence, Renesas, Viettel, FPT Semiconductor.</span></li>
-                                <li class="flex items-start"><span class="text-[#D35400] mr-3 mt-1">✓</span> <span><b>Kỹ sư hệ thống nhúng & IoT:</b> Phát triển các thiết bị thông minh, hệ thống IoT cho nông nghiệp, thành phố thông minh tại Bosch, VNG, Mobifone.</span></li>
-                                <li class="flex items-start"><span class="text-[#D35400] mr-3 mt-1">✓</span> <span><b>Kỹ sư Mạng & Viễn thông:</b> Vận hành, tối ưu hóa mạng 4G/5G, phát triển hạ tầng viễn thông tại Viettel, VNPT, Mobifone.</span></li>
-                                <li class="flex items-start"><span class="text-[#D35400] mr-3 mt-1">✓</span> <span><b>Kỹ sư Xử lý tín hiệu:</b> Phát triển các thuật toán xử lý âm thanh, hình ảnh, ứng dụng trong y tế, xe tự hành, nhận dạng.</span></li>
-                                <li class="flex items-start"><span class="text-[#D35400] mr-3 mt-1">✓</span> <span><b>Kỹ sư Lập trình ứng dụng:</b> Phát triển phần mềm cho các thiết bị di động, ứng dụng điều khiển và giám sát hệ thống.</span></li>
+                                 <li class="flex items-start"><span class="text-[#D35400] mr-3 mt-1">✓</span> <span><b>Kỹ sư thiết kế vi mạch (IC Design):</b> Làm việc tại các công ty hàng đầu như Synopsys, Cadence, Renesas, Viettel, FPT Semiconductor.</span></li>
+                                 <li class="flex items-start"><span class="text-[#D35400] mr-3 mt-1">✓</span> <span><b>Kỹ sư hệ thống nhúng & IoT:</b> Phát triển các thiết bị thông minh, hệ thống IoT cho nông nghiệp, thành phố thông minh tại Bosch, VNG, Mobifone.</span></li>
+                                 <li class="flex items-start"><span class="text-[#D35400] mr-3 mt-1">✓</span> <span><b>Kỹ sư Mạng & Viễn thông:</b> Vận hành, tối ưu hóa mạng 4G/5G, phát triển hạ tầng viễn thông tại Viettel, VNPT, Mobifone.</span></li>
+                                 <li class="flex items-start"><span class="text-[#D35400] mr-3 mt-1">✓</span> <span><b>Kỹ sư Xử lý tín hiệu:</b> Phát triển các thuật toán xử lý âm thanh, hình ảnh, ứng dụng trong y tế, xe tự hành, nhận dạng.</span></li>
+                                 <li class="flex items-start"><span class="text-[#D35400] mr-3 mt-1">✓</span> <span><b>Kỹ sư Lập trình ứng dụng:</b> Phát triển phần mềm cho các thiết bị di động, ứng dụng điều khiển và giám sát hệ thống.</span></li>
                             </ul>
                         </div>
                          <div id="tab-co-so" class="tab-pane hidden">
@@ -191,9 +181,9 @@
             <div class="container mx-auto px-6 text-center">
                  <h2 class="text-3xl md:text-4xl font-bold text-[#174E68]">Bước Cuối Cùng: Video Giới Thiệu</h2>
                  <p class="mt-4 max-w-2xl mx-auto text-lg text-gray-600 mb-8">Hãy cùng xem một video tổng quan để có cái nhìn trực quan và sinh động hơn về môi trường học tập, nghiên cứu và cuộc sống sinh viên tại HCMUTE, khoa Điện - Điện tử và ngành Điện tử Viễn thông.</p>
-                 <div class="aspect-w-16 aspect-h-9 max-w-4xl mx-auto rounded-lg shadow-2xl overflow-hidden">
+                 <div class="aspect-w-16 aspect-h-9 max-w-6xl mx-auto rounded-lg shadow-2xl overflow-hidden">
                      <iframe src="https://www.youtube.com/embed/F6vrLBg9XbE" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-                 </div>
+                </div>
             </div>
         </section>
     </main>
@@ -333,7 +323,3 @@
     </script>
 </body>
 </html>
-
-
-
-
