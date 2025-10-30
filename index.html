@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale-1.0">
-    <title>Trình mô phỏng Xe Dò Line (v6 - Gemini AI)</title>
+    <title>Trình mô phỏng Xe Dò Line (v7 - Logic V29)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f3f4f6;
         }
-        /* ... (Toàn bộ CSS từ v5 được giữ nguyên) ... */
+        /* ... (Toàn bộ CSS từ v6 được giữ nguyên) ... */
         canvas.draw-mode-freehand { cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 20l-7.5-7.5 4.5-4.5L12 11l7.5 7.5L16 20z'/><path d='M12 11V4'/></svg>") 0 24, crosshair; }
         canvas.draw-mode-line { cursor: crosshair; }
         canvas.draw-mode-rect { cursor: crosshair; }
@@ -45,7 +45,6 @@
             border-radius: 0.375rem;
         }
         
-        /* CSS cho AI Modal (MỚI) */
         #aiModal {
             transition: opacity 0.3s ease-in-out;
         }
@@ -62,11 +61,10 @@
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen p-4">
 
-    <h1 class="text-3xl font-bold text-gray-800 mb-4">Trình mô phỏng Xe Dò Line (v6 - Gemini AI)</h1>
+    <h1 class="text-3xl font-bold text-gray-800 mb-4">Trình mô phỏng Xe Dò Line (v7 - Logic V29)</h1>
 
     <!-- Bảng điều khiển chính -->
     <div class="flex flex-wrap justify-center gap-2 mb-2">
-        <!-- ... (Tất cả các nút từ v5 được giữ nguyên) ... -->
         <button id="drawButton" class="px-5 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 disabled:opacity-50" title="Chuyển sang chế độ vẽ">
             Vẽ
         </button>
@@ -82,20 +80,22 @@
         <button id="resetCarButton" class="px-5 py-2 bg-yellow-500 text-white font-semibold rounded-lg shadow-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-opacity-75" title="Đưa xe về vị trí xuất phát đã đặt">
             Reset Xe
         </button>
-        <button id="clearMapButton" class="px-5 py-2 bg-gray-700 text-white font-semibold rounded-lg shadow-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-600 focus:ring-opacity-75" title="Xóa toàn bộ bản đồ">
+        <button id="clearMapButton" class="px-5 py-2 bg-gray-700 text-white font-semibold rounded-lg shadow-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-600 focus:ring-opacity-75" title="Xóa toàn bộ bản đồ (để vẽ map mới)">
             Xóa Map
         </button>
-        <button id="saveMapButton" class="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700" title="Sao chép dữ liệu map vào clipboard">
+        <button id="loadDefaultMapButton" class="px-4 py-2 bg-teal-600 text-white font-semibold rounded-lg shadow-md hover:bg-teal-700" title="Tải lại bản đồ thi đấu mặc định">
+            Tải Map V29
+        </button>
+        <button id="saveMapButton" class="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700" title="Sao chép dữ liệu map hiện tại vào clipboard">
             Lưu Map
         </button>
-        <button id="loadMapButton" class="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700" title="Tải map từ chuỗi text">
+        <button id="loadMapButton" class="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700" title="Tải map tùy chỉnh từ chuỗi text">
             Tải Map
         </button>
     </div>
 
     <!-- Thanh công cụ vẽ -->
     <div id="drawingTools" class="flex flex-wrap justify-center items-center gap-2 mb-4 p-2 bg-gray-100 rounded-lg shadow">
-        <!-- ... (Tất cả các công cụ vẽ từ v5 được giữ nguyên) ... -->
         <button id="toolFreehand" class="tool-button px-3 py-2 bg-white text-gray-800 rounded shadow hover:bg-blue-100 disabled:hover:bg-blue-600">Vẽ Tự Do</button>
         <button id="toolLine" class="tool-button px-3 py-2 bg-white text-gray-800 rounded shadow hover:bg-blue-100 disabled:hover:bg-blue-600">Đường Thẳng</button>
         <button id="toolArc" class="tool-button px-3 py-2 bg-white text-gray-800 rounded shadow hover:bg-blue-100 disabled:hover:bg-blue-600">Cung (3-click)</button>
@@ -113,11 +113,19 @@
 
     <!-- Tùy chọn mô phỏng -->
     <div id="simulationOptions" class="flex flex-wrap justify-center items-center gap-2 mb-4 p-2 bg-gray-100 rounded-lg shadow">
-        <!-- ... (Thanh trượt tốc độ từ v5 được giữ nguyên) ... -->
         <div class="flex items-center space-x-2 bg-white p-2 rounded shadow">
             <label for="carSpeedSlider" class="text-sm">Tốc độ xe:</label>
             <input id="carSpeedSlider" type="range" min="0.5" max="5" step="0.1" value="1.5" class="w-32">
             <span id="carSpeedValue" class="text-sm w-8 text-right">1.5</span>
+        </div>
+        <!-- (MỚI) Tùy chỉnh hằng số PID từ giao diện -->
+        <div class="flex items-center space-x-2 bg-white p-2 rounded shadow">
+            <label for="pid_KP" class="text-sm">KP:</label>
+            <input id="pid_KP" type="number" value="50.0" step="0.1" class="w-16 p-1 border rounded">
+            <label for="pid_KI" class="text-sm">KI:</label>
+            <input id="pid_KI" type="number" value="0.01" step="0.001" class="w-16 p-1 border rounded">
+            <label for="pid_KD" class="text-sm">KD:</label>
+            <input id="pid_KD" type="number" value="10.0" step="0.1" class="w-16 p-1 border rounded">
         </div>
     </div>
 
@@ -150,7 +158,7 @@ Chờ mô phỏng...
                 </button>
             </div>
             
-            <!-- Bảng điều khiển AI (MỚI) -->
+            <!-- Bảng điều khiển AI -->
             <div id="aiControls" class="flex flex-col gap-2 p-4 bg-gray-100 rounded-lg shadow">
                  <h3 class="text-lg font-bold text-gray-800">Công cụ Gemini AI ✨</h3>
                  <textarea id="aiPromptInput" class="w-full h-24 p-2 border border-gray-300 rounded-md" placeholder="Mô tả logic bạn muốn (ví dụ: 'rẽ trái khi 2 cảm biến trái chạm vạch') hoặc đặt câu hỏi về code..."></textarea>
@@ -168,7 +176,7 @@ Chờ mô phỏng...
         </div>
     </div>
     
-    <!-- AI Modal (MỚI) - Ẩn mặc định -->
+    <!-- AI Modal -->
     <div id="aiModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none">
         <div class="bg-white rounded-lg shadow-2xl w-full max-w-2xl">
             <div class="flex justify-between items-center p-4 border-b">
@@ -184,7 +192,6 @@ Chờ mô phỏng...
 
     <script>
         // --- Lấy các phần tử DOM ---
-        // ... (Tất cả DOM elements từ v5) ...
         const canvas = document.getElementById('simulationCanvas');
         const ctx = canvas.getContext('2d');
         const logContent = document.getElementById('logContent');
@@ -195,6 +202,7 @@ Chờ mô phỏng...
         const stopButton = document.getElementById('stopButton');
         const resetCarButton = document.getElementById('resetCarButton');
         const clearMapButton = document.getElementById('clearMapButton');
+        const loadDefaultMapButton = document.getElementById('loadDefaultMapButton'); // MỚI
         const saveMapButton = document.getElementById('saveMapButton');
         const loadMapButton = document.getElementById('loadMapButton');
         
@@ -213,11 +221,13 @@ Chờ mô phỏng...
         const simulationOptions = document.getElementById('simulationOptions');
         const carSpeedSlider = document.getElementById('carSpeedSlider');
         const carSpeedValue = document.getElementById('carSpeedValue');
+        const pidKPInput = document.getElementById('pid_KP'); // MỚI
+        const pidKIInput = document.getElementById('pid_KI'); // MỚI
+        const pidKDInput = document.getElementById('pid_KD'); // MỚI
         
         const codeEditor = document.getElementById('codeEditor');
         const loadCodeButton = document.getElementById('loadCodeButton');
 
-        // DOM elements MỚI cho AI
         const aiPromptInput = document.getElementById('aiPromptInput');
         const generateCodeButton = document.getElementById('generateCodeButton');
         const debugCodeButton = document.getElementById('debugCodeButton');
@@ -228,7 +238,6 @@ Chờ mô phỏng...
 
 
         // --- CẤU HÌNH ---
-        // ... (Tất cả cấu hình từ v5) ...
         let LINE_COLOR = '#000000';
         const BACKGROUND_COLOR = '#FFFFFF';
         let LINE_WIDTH = 18;
@@ -238,7 +247,6 @@ Chờ mô phỏng...
         const GRID_SIZE = 20;
         
         // --- BIẾN TRẠNG THÁI ---
-        // ... (Tất cả biến trạng thái từ v5) ...
         let currentMode = 'draw';
         let currentDrawTool = 'freehand';
         let isRunning = false;
@@ -260,8 +268,7 @@ Chờ mô phỏng...
         let initialCarY = 750; 
         let initialCarAngle = -Math.PI / 2; 
 
-        // --- Đối tượng Xe ---
-        // ... (Giữ nguyên 100% đối tượng 'car' từ v5) ...
+        // --- Đối tượng Xe (CẬP NHẬT CẢM BIẾN V7) ---
         const car = {
             x: initialCarX,
             y: initialCarY,
@@ -270,11 +277,12 @@ Chờ mô phỏng...
             angle: initialCarAngle,
             speed: 1.5,
             turnSpeed: 0.05,
+            // Cập nhật V7: 4 cảm biến thẳng hàng S1, S2, S3, S4
             sensors: [
-                { id: 'SL', x: -12, y: -15, value: 0 },
-                { id: 'SR', x: 12, y: -15, value: 0 },
-                { id: 'ML', x: -5, y: -18, value: 0 },
-                { id: 'MR', x: 5, y: -18, value: 0 }
+                { id: 'S1', x: -15, y: -18, value: 0 }, // Trái
+                { id: 'S2', x: -5, y: -18, value: 0 },  // Gần trái
+                { id: 'S3', x: 5, y: -18, value: 0 },   // Gần phải
+                { id: 'S4', x: 15, y: -18, value: 0 }   // Phải
             ],
             wheels: [
                 { x: -15, y: -10, width: 6, height: 12 },
@@ -299,6 +307,7 @@ Chờ mô phỏng...
                     ctx.fillStyle = '#333';
                     ctx.fillRect(wheel.x - wheel.width / 2, wheel.y - wheel.height / 2, wheel.width, wheel.height);
                 });
+                // Cảm biến
                 this.sensors.forEach(sensor => {
                     ctx.fillStyle = sensor.value ? SENSOR_COLOR_ON : SENSOR_COLOR_OFF;
                     ctx.beginPath();
@@ -316,6 +325,9 @@ Chờ mô phỏng...
                 this.y += Math.sin(this.angle) * linearSpeed;
             },
             readSensors: function() {
+                // Giả lập ngưỡng 0.7 (giống C++)
+                const see_line_threshold = 0.7;
+                
                 this.sensors.forEach(sensor => {
                     const cosA = Math.cos(this.angle);
                     const sinA = Math.sin(this.angle);
@@ -323,11 +335,20 @@ Chờ mô phỏng...
                     const sensorY = this.y + sensor.x * sinA + sensor.y * cosA;
                     
                     try {
+                        // Đọc 1 pixel
                         const pixelData = ctx.getImageData(Math.round(sensorX), Math.round(sensorY), 1, 1).data;
-                        const isBlack = pixelData[0] < 50 && pixelData[1] < 50 && pixelData[2] < 50;
-                        sensor.value = isBlack ? 1 : 0;
+                        // Tính toán giá trị "analog" (0.0 -> 1.0)
+                        // Giả lập SENSOR_MIN (trắng) là 255, SENSOR_MAX (đen) là 0
+                        const brightness = (pixelData[0] + pixelData[1] + pixelData[2]) / 3;
+                        const analogValue = 1.0 - (brightness / 255.0); // 1.0 là đen, 0.0 là trắng
+                        
+                        // Áp dụng ngưỡng
+                        sensor.value = (analogValue > see_line_threshold) ? 1 : 0;
+                        sensor.analog = analogValue; // Lưu giá trị analog để PID
+                        
                     } catch (e) {
                         sensor.value = 0;
+                        sensor.analog = 0.0;
                     }
                 });
             },
@@ -338,22 +359,66 @@ Chờ mô phỏng...
             }
         };
 
-        // --- BỘ NÃO XE (LOGIC CỦA BẠN) ---
-        // ... (Giữ nguyên 100% đối tượng 'CarBrain' từ v5) ...
+        // --- BỘ NÃO XE (LOGIC V29 - ĐÃ DỊCH SANG JS) ---
         const CarBrain = {
+            // Hằng số PID
+            KP: 50.0, // Kp khi mất ổn định (mặc định)
+            KI: 0.01,
+            KD: 10.0,
+            
+            // Hằng số tốc độ
+            PID_SPEED_STABLE: 1.0,   // (120/255) Tốc độ PID khi ổn định
+            PID_SPEED_UNSTABLE: 0.8, // (105/255) Tốc độ PID khi mất ổn định
+            PID_KP_STABLE: 20.0,
+            PID_KP_UNSTABLE: 50.0,
+            TURN_SPEED_LINE: 1.5,    // (200/255) Tốc độ xoay tại ngã rẽ
+            
+            // Hằng số logic
+            LOST_LINE_TIMEOUT: 500, // ms
+
+            // Biến trạng thái PID
             lastError: 0,
             integral: 0,
-            KP: 0.8,
-            KI: 0.001,
-            KD: 0.1,
+            pre_pos: 1500.0, // Tương đương pre_pos C++
+            stabilityCounter: 0,
 
+            // Biến trạng thái Lộ Trình (V29)
+            mapState: 0,
+            choSuKienMoi: true,
+            
+            // Biến trạng thái Rẽ (Turning)
+            isTurning: false,
+            turnStartTime: 0,
+            turningRight: false,
+            currentTurnSpeed: 0,
+            currentMaxTurnTime: 0,
+            
+            // Biến trạng thái Mất Line
+            lostLineStartTime: 0,
+
+            // Hàm reset
             reset: function() {
                 this.lastError = 0;
                 this.integral = 0;
+                this.pre_pos = 1500.0;
+                this.stabilityCounter = 0;
+                this.mapState = 0;
+                this.choSuKienMoi = true;
+                this.isTurning = false;
+                this.turnStartTime = 0;
+                this.lostLineStartTime = 0;
+                
+                // Cập nhật PID từ giao diện
+                this.KP = parseFloat(pidKPInput.value) || 50.0;
+                this.KI = parseFloat(pidKIInput.value) || 0.01;
+                this.KD = parseFloat(pidKDInput.value) || 10.0;
+                this.PID_KP_STABLE = this.KP * 0.4; // Tạm tính Kp stable = 40% Kp unstable
+                this.PID_KP_UNSTABLE = this.KP;
             },
             
             update: function(sensors) {
                 try {
+                    // Gọi hàm logic V29
                     return this.customUpdate(sensors, this);
                 } catch (e) {
                     console.error("Lỗi trong code 'Bộ Não Xe' của bạn:", e);
@@ -365,67 +430,264 @@ Chờ mô phỏng...
                 }
             },
             
+            // Hàm 'customUpdate' (LOGIC V29 ĐÃ DỊCH)
+            // Sẽ bị ghi đè bởi code editor, nhưng đây là bản V29 gốc
             customUpdate: function(sensors, brain) {
-                // Đây là code mẫu, sẽ bị ghi đè
-                // (Code mẫu từ v5 được giữ nguyên ở đây)
-                const sL = sensors.find(s => s.id === 'SL').value;
-                const sR = sensors.find(s => s.id === 'SR').value;
-                const mL = sensors.find(s => s.id === 'ML').value;
-                const mR = sensors.find(s => s.id === 'MR').value;
                 
-                let error = 0;
-                let logData = { status: "Đang dò line..." };
-                const baseSpeed = 1.0; 
-                
-                if (sL === 1 && sR === 0) error = -1;
-                else if (sL === 0 && sR === 1) error = 1;
-                else if (mL === 1 && mR === 0) error = -0.5;
-                else if (mL === 0 && mR === 1) error = 0.5;
-                else if (sL === 0 && sR === 0 && mL === 0 && mR === 0) {
-                    logData.status = "Mất line!";
-                    error = brain.lastError > 0 ? 2 : -2; 
-                } else if (sL === 1 && sR === 1) {
-                    logData.status = "Trên vạch đôi / Ngã rẽ?";
-                    error = 0;
-                } else if (mL === 1 && mR === 1) {
-                    error = 0;
-                } else {
-                    error = 0;
+                const currentTime = Date.now();
+                let logData = { status: "..." };
+
+                // 1. ƯU TIÊN KIỂM TRA XOAY (performTurn)
+                if (brain.isTurning) {
+                    logData.status = brain.turningRight ? "Đang Rẽ Phải..." : "Đang Rẽ Trái...";
+                    
+                    // 1.1 Kiểm tra dừng (S2, S3)
+                    const s2 = sensors.find(s => s.id === 'S2').value;
+                    const s3 = sensors.find(s => s.id === 'S3').value;
+                    let lineFound = (s2 === 1 || s3 === 1);
+                    
+                    // 1.2 Kiểm tra timeout
+                    if (currentTime - brain.turnStartTime > brain.currentMaxTurnTime) {
+                        lineFound = true;
+                        logData.status = "Rẽ Bị Timeout!";
+                    }
+
+                    // 1.3 Hoàn thành xoay
+                    if (lineFound) {
+                        brain.isTurning = false;
+                        brain.lastError = 0; brain.integral = 0; brain.pre_pos = 1500.0;
+                        return { motorSpeeds: { left: 0, right: 0 }, logData: { status: "Hoàn thành rẽ!", mapState: brain.mapState } };
+                    }
+                    
+                    // 1.4 Tiếp tục xoay
+                    const turnSpeed = brain.currentTurnSpeed;
+                    if (brain.turningRight) {
+                        return { motorSpeeds: { left: turnSpeed, right: -turnSpeed }, logData: { status: "Đang Rẽ Phải...", mapState: brain.mapState } };
+                    } else {
+                        return { motorSpeeds: { left: -turnSpeed, right: turnSpeed }, logData: { status: "Đang Rẽ Trái...", mapState: brain.mapState } };
+                    }
                 }
                 
-                const proportional = error;
-                brain.integral += error;
-                if (brain.integral > 20) brain.integral = 20;
-                if (brain.integral < -20) brain.integral = -20;
+                // 2. ĐỌC CẢM BIẾN (Giá trị nhị phân 0 hoặc 1)
+                const s1 = sensors.find(s => s.id === 'S1').value;
+                const s2 = sensors.find(s => s.id === 'S2').value;
+                const s3 = sensors.find(s => s.id === 'S3').value;
+                const s4 = sensors.find(s => s.id === 'S4').value;
+
+                // 3. PHÂN LOẠI SỰ KIỆN (Logic V29)
+                const laNgaTu = (s1 && s2 && s3 && s4);
+                const laNgaBaTrai = (s1 && s2 && s3 && !s4);    // 1110
+                const laNgaBaPhai = (!s1 && s2 && s3 && s4);    // 0111
+                const laTamGiac = (s1 && !s2 && !s3 && s4);      // 1001 (Vạch khuyết)
+                const laCuoiDuong = (!s1 && !s2 && !s3 && !s4);  // 0000
+                const laPhucHoiTrai = (!s1 && s2 && !s3 && !s4); // 0100
+                const laPhucHoiPhai = (!s1 && !s2 && s3 && !s4); // 0010
                 
-                const derivative = error - brain.lastError;
-                brain.lastError = error;
+                const laSuKienNgaRe = laNgaTu || laNgaBaTrai || laNgaBaPhai || laTamGiac;
+
+                if (!laSuKienNgaRe && !(laCuoiDuong && brain.mapState != 6)) {
+                    brain.choSuKienMoi = true;
+                }
                 
-                const correction = (brain.KP * proportional) + (brain.KI * brain.integral) + (brain.KD * derivative);
+                logData.mapState = brain.mapState; // Luôn log mapState
+
+                // 4. MÁY TRẠNG THÁI (STATE MACHINE)
                 
-                let leftSpeed = baseSpeed + correction;
-                let rightSpeed = baseSpeed - correction;
+                // 4.1. KIỂM TRA ĐANG CHỜ QUA VẠCH
+                if (!brain.choSuKienMoi) {
+                    logData.status = "Đang chờ qua vạch...";
+                    // (Đang rẽ đã được xử lý ở trên)
+                    // Ép đi thẳng để qua vạch
+                    return { motorSpeeds: { left: brain.PID_SPEED_STABLE, right: brain.PID_SPEED_STABLE }, logData };
+                }
                 
-                leftSpeed = Math.max(0, Math.min(1.5, leftSpeed));
-                rightSpeed = Math.max(0, Math.min(1.5, rightSpeed));
+                // 4.2. XỬ LÝ SỰ KIỆN MỚI
+                switch (brain.mapState) {
+                    case 0: // Tìm 0111 (lần 1)
+                        if (laNgaBaPhai) {
+                            logData.status = "MAP 0 -> 1: Thấy 0111 (Lần 1). Bỏ qua.";
+                            brain.choSuKienMoi = false;
+                            brain.mapState = 1;
+                            brain.stabilityCounter = 0; brain.pre_pos = 1500.0; brain.lastError = 0.0; brain.integral = 0.0;
+                            return { motorSpeeds: { left: brain.PID_SPEED_STABLE, right: brain.PID_SPEED_STABLE }, logData };
+                        }
+                        break; // Nếu không, chạy PID
+
+                    case 1: // Tìm 0111 (lần 2)
+                        if (laNgaBaPhai) {
+                            logData.status = "MAP 1 -> 2: Thấy 0111 (Lần 2). Bỏ qua.";
+                            brain.choSuKienMoi = false;
+                            brain.mapState = 2;
+                            brain.stabilityCounter = 0; brain.pre_pos = 1500.0; brain.lastError = 0.0; brain.integral = 0.0;
+                            return { motorSpeeds: { left: brain.PID_SPEED_STABLE, right: brain.PID_SPEED_STABLE }, logData };
+                        }
+                        break;
+
+                    case 2: // Tìm 0111 (lần 3) -> RẼ PHẢI
+                        if (laNgaBaPhai) {
+                            logData.status = "MAP 2 -> 3: Thấy 0111 (Lần 3). Rẽ Phải!";
+                            brain.choSuKienMoi = false;
+                            brain.mapState = 3;
+                            brain.stabilityCounter = 0;
+                            brain.isTurning = true; brain.turnStartTime = currentTime; brain.turningRight = true; 
+                            brain.currentTurnSpeed = brain.TURN_SPEED_LINE; brain.currentMaxTurnTime = 1200; // Tăng thời gian
+                            return { motorSpeeds: { left: brain.currentTurnSpeed, right: -brain.currentTurnSpeed }, logData };
+                        }
+                        break;
+
+                    case 3: // Tìm Ngã tư (1110 / 1111) -> RẼ TRÁI
+                        if (laNgaBaTrai || laNgaTu) {
+                            logData.status = "MAP 3 -> 4: Thấy Ngã Tư. Rẽ Trái!";
+                            brain.choSuKienMoi = false;
+                            brain.mapState = 4;
+                            brain.stabilityCounter = 0;
+                            brain.isTurning = true; brain.turnStartTime = currentTime; brain.turningRight = false; 
+                            brain.currentTurnSpeed = brain.TURN_SPEED_LINE; brain.currentMaxTurnTime = 1000;
+                            return { motorSpeeds: { left: -brain.currentTurnSpeed, right: brain.currentTurnSpeed }, logData };
+                        }
+                        break;
+                        
+                    case 4: // Tìm 0111 (sau ngã tư) -> RẼ PHẢI
+                        if (laNgaBaPhai) {
+                            logData.status = "MAP 4 -> 5: Thấy 0111. Rẽ Phải.";
+                            brain.choSuKienMoi = false;
+                            brain.mapState = 5;
+                            brain.stabilityCounter = 0;
+                            brain.isTurning = true; brain.turnStartTime = currentTime; brain.turningRight = true; 
+                            brain.currentTurnSpeed = brain.TURN_SPEED_LINE; brain.currentMaxTurnTime = 1000;
+                            return { motorSpeeds: { left: brain.currentTurnSpeed, right: -brain.currentTurnSpeed }, logData };
+                        }
+                        break;
+
+                    case 5: // Tìm "Tam Giác" (1001) -> RẼ TRÁI
+                        if (laTamGiac) {
+                            logData.status = "MAP 5 -> 6: Thấy Tam Giác (1001). Rẽ Trái.";
+                            brain.choSuKienMoi = false;
+                            brain.mapState = 6;
+                            brain.stabilityCounter = 0;
+                            brain.isTurning = true; brain.turnStartTime = currentTime; brain.turningRight = false; 
+                            brain.currentTurnSpeed = brain.TURN_SPEED_LINE; brain.currentMaxTurnTime = 1000;
+                            return { motorSpeeds: { left: -brain.currentTurnSpeed, right: brain.currentTurnSpeed }, logData };
+                        }
+                        break;
+
+                    case 6: // Tìm "Cuối Đường" (0000)
+                        if (laCuoiDuong) {
+                            if (brain.lostLineStartTime === 0) {
+                                brain.lostLineStartTime = currentTime; 
+                                logData.status = "MAP 6 -> 7: Thấy 0000. Kiểm tra...";
+                            }
+                            if (currentTime - brain.lostLineStartTime > brain.LOST_LINE_TIMEOUT) {
+                                logData.status = "HOÀN THÀNH! Dừng vĩnh viễn.";
+                                brain.mapState = 7; 
+                                stopSimulationWithError("Đã chạy xong lộ trình V29."); // Dừng mô phỏng
+                                return { motorSpeeds: { left: 0, right: 0 }, logData };
+                            }
+                            // Chờ timeout, không chạy PID
+                            return { motorSpeeds: { left: 0, right: 0 }, logData };
+                        } else {
+                            brain.lostLineStartTime = 0; // Reset nếu thấy lại line
+                        }
+                        break;
+
+                    case 7: // Đã dừng
+                        logData.status = "Đã dừng.";
+                        stopSimulationWithError("Đã chạy xong lộ trình V29.");
+                        return { motorSpeeds: { left: 0, right: 0 }, logData };
+                }
                 
-                logData.error = error;
-                logData.integral = brain.integral.toFixed(2);
-                logData.derivative = derivative.toFixed(2);
-                logData.correction = correction.toFixed(2);
-                logData.leftSpeed = leftSpeed.toFixed(2);
-                logData.rightSpeed = rightSpeed.toFixed(2);
+                // 5. NẾU KHÔNG CÓ SỰ KIỆN (Logic PID và Phục hồi)
                 
-                return {
-                    motorSpeeds: { left: leftSpeed, right: rightSpeed },
-                    logData: logData
-                };
+                if (laPhucHoiTrai) { // 0100
+                    brain.lostLineStartTime = 0; logData.status = "Phục hồi trái (0100)"; brain.stabilityCounter = 0;
+                    brain.lastError = -0.8;
+                    return { motorSpeeds: { left: -0.8, right: 1.2 }, logData };
+                }
+                else if (laPhucHoiPhai) { // 0010
+                    brain.lostLineStartTime = 0; logData.status = "Phục hồi phải (0010)"; brain.stabilityCounter = 0;
+                    brain.lastError = 0.8;
+                    return { motorSpeeds: { left: 1.2, right: -0.8 }, logData };
+                }
+                else if (laCuoiDuong) { // 0000 (nhưng state != 6)
+                    brain.stabilityCounter = 0;
+                    if (brain.lostLineStartTime === 0) {
+                        brain.lostLineStartTime = currentTime; 
+                        logData.status = "Mất line tạm thời (0000)...";
+                    }
+                    if (currentTime - brain.lostLineStartTime > brain.LOST_LINE_TIMEOUT) {
+                        logData.status = "Mất line TIMEOUT! Dừng.";
+                        stopSimulationWithError("Mất line (0000) quá lâu.");
+                        return { motorSpeeds: { left: 0, right: 0 }, logData };
+                    } else {
+                        // Tìm line theo hướng cũ
+                        logData.status = "Đang tìm line...";
+                        const recoverySpeed = 1.0;
+                        if (brain.lastError < -0.5) return { motorSpeeds: { left: recoverySpeed, right: -recoverySpeed / 2 }, logData };
+                        else if (brain.lastError > 0.5) return { motorSpeeds: { left: -recoverySpeed / 2, right: recoverySpeed }, logData };
+                        else return { motorSpeeds: { left: recoverySpeed, right: recoverySpeed }, logData };
+                    }
+                }
+                else { // LOGIC PID BÌNH THƯỜNG
+                    brain.lostLineStartTime = 0;
+                    
+                    // Đọc giá trị analog
+                    const s1_a = sensors.find(s => s.id === 'S1').analog;
+                    const s2_a = sensors.find(s => s.id === 'S2').analog;
+                    const s3_a = sensors.find(s => s.id === 'S3').analog;
+                    const s4_a = sensors.find(s => s.id === 'S4').analog;
+                    const sumError_all = s1_a + s2_a + s3_a + s4_a;
+                    
+                    let pos_pid = 0.0;
+                    if (sumError_all < 0.01) {
+                        pos_pid = brain.pre_pos; // Giữ vị trí cũ
+                    } else {
+                        pos_pid = (s1_a * 0) + (s2_a * 1000) + (s3_a * 2000) + (s4_a * 3000);
+                        pos_pid /= sumError_all;
+                        brain.pre_pos = pos_pid;
+                    }
+                    
+                    if (pos_pid > 1100 && pos_pid < 1900) brain.stabilityCounter++; 
+                    else brain.stabilityCounter = 0;
+
+                    let current_initSpeed, current_Kp;
+                    if (brain.stabilityCounter > 20) {
+                        logData.status = "PID (Ổn định)";
+                        current_initSpeed = brain.PID_SPEED_STABLE;
+                        current_Kp = brain.PID_KP_STABLE;
+                    } else {
+                        logData.status = "PID (Tìm kiếm)";
+                        current_initSpeed = brain.PID_SPEED_UNSTABLE;
+                        current_Kp = brain.PID_KP_UNSTABLE;
+                    }
+                    
+                    const error = (pos_pid - 1500.0) / 500.0;
+                    const P = error;
+                    brain.integral = brain.integral + P; // Lấy previous_I từ C++ là sai, phải là I = I + P
+                    brain.integral = Math.max(-100.0, Math.min(100.0, brain.integral));
+                    const D = error - brain.lastError;
+                    
+                    const PID_value = (current_Kp * P) + (brain.KI * brain.integral) + (brain.KD * D);
+                    brain.lastError = error;
+                    
+                    let leftSpeed = current_initSpeed + PID_value;
+                    let rightSpeed = current_initSpeed - PID_value;
+                    
+                    leftSpeed = Math.max(-1.5, Math.min(1.5, leftSpeed));
+                    rightSpeed = Math.max(-1.5, Math.min(1.5, rightSpeed));
+                    
+                    logData.error = error.toFixed(2);
+                    logData.PID = PID_value.toFixed(2);
+                    logData.leftSpeed = leftSpeed.toFixed(2);
+                    logData.rightSpeed = rightSpeed.toFixed(2);
+
+                    return { motorSpeeds: { left: leftSpeed, right: rightSpeed }, logData };
+                }
             }
         };
 
-        // --- LOGIC GEMINI API (MỚI) ---
-        const apiKey = ""; // Canvas sẽ tự động thêm key
-        const genAIApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+        // --- LOGIC GEMINI API (CẬP NHẬT V7) ---
+        const apiKey = "";
+        const genAIApiUrl = `https://generativelab.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
 
         async function callGeminiAPI(systemPrompt, userPrompt) {
             setAiLoading(true);
@@ -478,7 +740,7 @@ Chờ mô phỏng...
             }
         }
 
-        // Nút Tạo Code (MỚI)
+        // Nút Tạo Code (CẬP NHẬT V7)
         generateCodeButton.addEventListener('click', async () => {
             const userPrompt = aiPromptInput.value;
             if (!userPrompt) {
@@ -486,28 +748,32 @@ Chờ mô phỏng...
                 return;
             }
             
+            // Cập nhật system prompt cho cảm biến S1-S4
             const systemPrompt = `
 You are an expert JavaScript programmer specializing in line follower robot logic.
 Your task is to generate ONLY the JavaScript code for the body of a function: \`customUpdate(sensors, brain)\`.
 Do NOT include the function definition \`function customUpdate(sensors, brain) { ... }\` or any surrounding text, comments, or markdown ticks (\`\`\`).
 You must generate only the raw JavaScript code for the function's body.
 
-The 'sensors' array has this structure:
+The 'sensors' array has this structure (4 sensors in a line):
 [
-  { id: 'SL', value: 0 }, // Sensor Left (Ngoài cùng trái)
-  { id: 'SR', value: 0 }, // Sensor Right (Ngoài cùng phải)
-  { id: 'ML', value: 0 }, // Motor Left (Trong trái)
-  { id: 'MR', value: 0 }  // Motor Right (Trong phải)
+  { id: 'S1', value: 0, analog: 0.0 }, // Far Left
+  { id: 'S2', value: 0, analog: 0.0 }, // Mid Left
+  { id: 'S3', value: 0, analog: 0.0 }, // Mid Right
+  { id: 'S4', value: 0, analog: 0.0 }  // Far Right
 ]
 'value' is 1 (black line) or 0 (white background).
+'analog' is 0.0 (white) to 1.0 (black), use this for PID position calculation.
 
 The 'brain' object contains:
 - brain.lastError (number)
 - brain.integral (number)
-- brain.KP (number)
-- brain.KI (number)
-- brain.KD (number)
-You MUST use these properties for PID calculations. Access them via 'brain.KP', 'brain.lastError', etc.
+- brain.pre_pos (number)
+- brain.mapState (number)
+- brain.choSuKienMoi (boolean)
+- brain.isTurning (boolean)
+- brain.KP, brain.KI, brain.KD (PID constants)
+You MUST use these properties.
 
 Your code MUST return an object with this exact structure:
 {
@@ -520,17 +786,14 @@ Respond in Vietnamese for comments if any.
             let generatedCode = await callGeminiAPI(systemPrompt, userPrompt);
             
             if (generatedCode) {
-                // Làm sạch code (loại bỏ markdown ticks nếu AI cố tình thêm vào)
                 generatedCode = generatedCode.replace(/^```javascript\n?|```$/g, "").trim();
-                
                 codeEditor.value = generatedCode;
                 aiStatus.textContent = "Đã tạo code! Đang nạp code...";
-                // Tự động nạp code
                 loadCodeButton.click();
             }
         });
 
-        // Nút Phân tích Code (MỚI)
+        // Nút Phân tích Code (CẬP NHẬT V7)
         debugCodeButton.addEventListener('click', async () => {
             const userCode = codeEditor.value;
             if (!userCode) {
@@ -538,13 +801,16 @@ Respond in Vietnamese for comments if any.
                 return;
             }
             
+            // Cập nhật system prompt cho cảm biến S1-S4
             const systemPrompt = `
 Bạn là một chuyên gia đánh giá code (code reviewer) chuyên về logic robot dò line (PID, v.v.).
 Nhiệm vụ của bạn là phân tích code JavaScript của người dùng.
+Code này dùng 4 cảm biến thẳng hàng: S1 (ngoài trái), S2 (trong trái), S3 (trong phải), S4 (ngoài phải).
+Code cũng sử dụng một máy trạng thái (brain.mapState) để xử lý lộ trình.
 Hãy phản hồi bằng Tiếng Việt.
-1. Giải thích logic của code một cách rõ ràng, từng bước một.
-2. Xác định các lỗi tiềm ẩn hoặc các trường hợp biên (ví dụ: ngã rẽ 90 độ, ngã ba, mất line).
-3. Gợi ý các cải tiến để code chạy tốt hơn hoặc ổn định hơn.
+1. Giải thích logic của code, đặc biệt là máy trạng thái (mapState).
+2. Xác định các lỗi tiềm ẩn hoặc các trường hợp biên.
+3. Gợi ý các cải tiến.
 Hãy định dạng câu trả lời của bạn rõ ràng bằng Markdown (dùng #, *, \`code\`).
 `;
             const userPrompt = `
@@ -558,8 +824,6 @@ ${userCode}
             const analysis = await callGeminiAPI(systemPrompt, userPrompt);
             
             if (analysis) {
-                // Sử dụng một thư viện (hoặc hàm đơn giản) để chuyển Markdown sang HTML
-                // Vì không có thư viện, tôi sẽ thay thế các thẻ cơ bản
                 let htmlAnalysis = analysis
                     .replace(/```javascript\n/g, '<pre><code>')
                     .replace(/```\n/g, '</code></pre>')
@@ -568,7 +832,7 @@ ${userCode}
                     .replace(/^# (.*$)/gmi, '<h1>$1</h1>')
                     .replace(/^## (.*$)/gmi, '<h2>$1</h2>')
                     .replace(/\n\*(.*)/g, '<ul>\n  <li>$1</li>\n</ul>')
-                    .replace(/<\/ul>\n<ul>/g, '') // Gộp các list
+                    .replace(/<\/ul>\n<ul>/g, '')
                     .replace(/\n\n/g, '<br><br>');
                 
                 aiModalContent.innerHTML = htmlAnalysis;
@@ -584,78 +848,18 @@ ${userCode}
         }
         closeAiModalButton.addEventListener('click', hideAiModal);
         aiModal.addEventListener('click', (e) => {
-            if (e.target === aiModal) { // Chỉ đóng khi click vào nền mờ
+            if (e.target === aiModal) {
                 hideAiModal();
             }
         });
 
 
-        // --- CODE EDITOR LOGIC ---
-        // ... (Giữ nguyên codeTemplate và hàm 'loadCodeButton' từ v5) ...
-        const codeTemplate = `
-// 'sensors' là mảng cảm biến đầu vào
-// 'brain' là đối tượng CarBrain, dùng để truy cập:
-// - brain.lastError, brain.integral (để tính PID)
-// - brain.KP, brain.KI, brain.KD (hằng số PID)
-
-const sL = sensors.find(s => s.id === 'SL').value;
-const sR = sensors.find(s => s.id === 'SR').value;
-const mL = sensors.find(s => s.id === 'ML').value;
-const mR = sensors.find(s => s.id === 'MR').value;
-
-let error = 0;
-let logData = { status: "Đang dò line..." };
-const baseSpeed = 1.0; 
-
-// --- Logic dò line của bạn ---
-if (sL === 1 && sR === 0) error = -1;
-else if (sL === 0 && sR === 1) error = 1;
-else if (mL === 1 && mR === 0) error = -0.5;
-else if (mL === 0 && mR === 1) error = 0.5;
-else if (sL === 0 && sR === 0 && mL === 0 && mR === 0) {
-    logData.status = "Mất line!";
-    error = brain.lastError > 0 ? 2 : -2; 
-} else if (sL === 1 && sR === 1) {
-    logData.status = "Trên vạch đôi / Ngã rẽ?";
-    error = 0;
-} else if (mL === 1 && mR === 1) {
-    error = 0;
-} else {
-    error = 0;
-}
-
-// --- Tính toán PID ---
-const proportional = error;
-brain.integral += error;
-if (brain.integral > 20) brain.integral = 20;
-if (brain.integral < -20) brain.integral = -20;
-
-const derivative = error - brain.lastError;
-brain.lastError = error;
-
-const correction = (brain.KP * proportional) + (brain.KI * brain.integral) + (brain.KD * derivative);
-
-let leftSpeed = baseSpeed + correction;
-let rightSpeed = baseSpeed - correction;
-
-leftSpeed = Math.max(0, Math.min(1.5, leftSpeed));
-rightSpeed = Math.max(0, Math.min(1.5, rightSpeed));
-
-// --- Chuẩn bị log ---
-logData.error = error;
-logData.integral = brain.integral.toFixed(2);
-logData.derivative = derivative.toFixed(2);
-logData.correction = correction.toFixed(2);
-logData.leftSpeed = leftSpeed.toFixed(2);
-logData.rightSpeed = rightSpeed.toFixed(2);
-
-// --- Trả về kết quả ---
-return {
-    motorSpeeds: { left: leftSpeed, right: rightSpeed },
-    logData: logData
-};
-`;
-        codeEditor.value = codeTemplate.trim();
+        // --- CODE EDITOR LOGIC (CẬP NHẬT V7) ---
+        // Nạp code logic V29 đã dịch vào editor
+        codeEditor.value = CarBrain.customUpdate.toString()
+            .replace(/^function\s*customUpdate\s*\([^)]*\)\s*\{/, '') // Xóa định nghĩa hàm
+            .replace(/\}$/, '') // Xóa dấu } cuối cùng
+            .trim(); // Xóa khoảng trắng
         
         loadCodeButton.addEventListener('click', () => {
             const userCode = codeEditor.value;
@@ -680,8 +884,7 @@ return {
         });
 
         
-        // --- CÁC HÀM CẬP NHẬT GIAO DIỆN ---
-        // ... (Giữ nguyên các hàm updateLogPanel, stopSimulationWithError từ v5) ...
+        // --- CÁC HÀM CẬP NHẬT GIAO DIỆN (CẬP NHẬT V7) ---
         function updateLogPanel(carState, sensors, carBrainLog) {
             logContent.innerHTML = `
 --- TRẠNG THÁI XE ---
@@ -689,16 +892,14 @@ X: ${carState.x.toFixed(2)}
 Y: ${carState.y.toFixed(2)}
 Góc: ${(carState.angle * 180 / Math.PI).toFixed(2)}°
 
---- CẢM BIẾN ---
-[SL, SR, ML, MR]
-[ ${sensors.find(s => s.id === 'SL').value},  ${sensors.find(s => s.id === 'SR').value},  ${sensors.find(s => s.id === 'ML').value},  ${sensors.find(s => s.id === 'MR').value}]
+--- CẢM BIẾN (S1, S2, S3, S4) ---
+[ ${sensors.find(s => s.id === 'S1').value},  ${sensors.find(s => s.id === 'S2').value},  ${sensors.find(s => s.id === 'S3').value},  ${sensors.find(s => s.id === 'S4').value}]
 
---- BỘ NÃO (LOGIC) ---
-Trạng thái: ${carBrainLog.status || "Đang tính..."}
-Lỗi (Error): ${carBrainLog.error}
-Tích phân (I): ${carBrainLog.integral || 0}
-Đạo hàm (D): ${carBrainLog.derivative || 0}
-Điều chỉnh: ${carBrainLog.correction || "0.00"}
+--- BỘ NÃO (LOGIC V29) ---
+Map State: ${carBrainLog.mapState ?? '...'}
+Trạng thái: ${carBrainLog.status || "..."}
+Lỗi (Error): ${carBrainLog.error || 0}
+PID: ${carBrainLog.PID || "0.00"}
 
 --- ĐỘNG CƠ ---
 Trái: ${carBrainLog.leftSpeed || "0.00"}
@@ -722,13 +923,19 @@ Lý do: ${message}
         }
         
         // --- VÒNG LẶP MÔ PHỎNG (GAME LOOP) ---
-        // ... (Giữ nguyên 100% từ v5) ...
         function simulationLoop() {
             if (!isRunning || currentMode !== 'simulate' || !mapImageData) return;
             
             ctx.putImageData(mapImageData, 0, 0);
             
             car.readSensors();
+            
+            // Cập nhật PID từ giao diện (MỚI)
+            CarBrain.KP = parseFloat(pidKPInput.value) || 50.0;
+            CarBrain.KI = parseFloat(pidKIInput.value) || 0.01;
+            CarBrain.KD = parseFloat(pidKDInput.value) || 10.0;
+            CarBrain.PID_KP_STABLE = CarBrain.KP * 0.4;
+            CarBrain.PID_KP_UNSTABLE = CarBrain.KP;
             
             const decision = CarBrain.update(car.sensors); 
             if (!decision) return;
@@ -748,7 +955,6 @@ Lý do: ${message}
         }
 
         // --- CÁC HÀM VẼ CƠ BẢN (Grid, Clear, RedrawAll) ---
-        // ... (Giữ nguyên 100% từ v5) ...
         function clearCanvas() {
             ctx.fillStyle = BACKGROUND_COLOR;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -781,16 +987,13 @@ Lý do: ${message}
             } else {
                 clearCanvas();
             }
-            
             drawGrid();
-            
             if (drawCar) {
                 drawCarAtCurrentInitialPosition();
             }
         }
 
         // --- LỊCH SỬ (UNDO/REDO) ---
-        // ... (Giữ nguyên 100% từ v5) ...
         function saveHistory() {
             history.splice(historyIndex + 1);
             history.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
@@ -827,12 +1030,119 @@ Lý do: ${message}
             history = [];
             historyIndex = -1;
             clearCanvas();
-            saveHistory();
+            // KHÔNG saveHistory() ở đây, để loadDefaultMap làm
+        }
+        
+        // --- (MỚI V7) VẼ BẢN ĐỒ MẶC ĐỊNH ---
+        function loadDefaultMap() {
+            clearCanvas();
+            
+            setupLineStyle();
+            ctx.lineWidth = 20; // Nét vẽ to hơn cho map V29
+            
+            // Vẽ theo ảnh image_d61ac1.png
+            
+            // Đường thẳng dưới cùng
+            ctx.beginPath();
+            ctx.moveTo(50, 750);
+            ctx.lineTo(1150, 750);
+            ctx.stroke();
+            
+            // 3 đường dọc (Ngã ba 0111)
+            ctx.beginPath();
+            ctx.moveTo(250, 750);
+            ctx.lineTo(250, 450);
+            ctx.stroke();
+            drawTriangleJunction(250, 750); // Ngã ba 1
+
+            ctx.beginPath();
+            ctx.moveTo(550, 750);
+            ctx.lineTo(550, 450);
+            ctx.stroke();
+            drawTriangleJunction(550, 750); // Ngã ba 2
+            
+            ctx.beginPath();
+            ctx.moveTo(850, 750);
+            ctx.lineTo(850, 450);
+            ctx.stroke();
+            drawTriangleJunction(850, 750); // Ngã ba 3 (Đây là chỗ rẽ phải)
+            
+            // Đường ngang (chỗ rẽ phải)
+            ctx.beginPath();
+            ctx.moveTo(850, 450);
+            ctx.lineTo(1150, 450);
+            ctx.stroke();
+            
+            // Đường dọc (lên ngã tư)
+            ctx.beginPath();
+            ctx.moveTo(1150, 750);
+            ctx.lineTo(1150, 150);
+            ctx.stroke();
+            
+            // Ngã tư (chỗ rẽ trái)
+            ctx.beginPath();
+            ctx.moveTo(1150, 150);
+            ctx.lineTo(800, 150);
+            ctx.stroke();
+            
+            // Đường cong (sau ngã tư)
+            ctx.beginPath();
+            ctx.moveTo(800, 150);
+            ctx.arcTo(600, 150, 600, 350, 100); // (x1, y1, x2, y2, radius)
+            ctx.lineTo(600, 400); // Điểm cuối
+            ctx.stroke();
+            
+            // Đường tam giác (1001) - vẽ 1 vạch, 1 vạch, cách 1 đoạn
+            ctx.beginPath();
+            ctx.moveTo(600, 400);
+            ctx.lineTo(400, 400); // Đường ngang
+            ctx.stroke();
+            // Vẽ 2 vạch của 1001
+            drawTriangleJunction(500, 400, false); // true = dọc
+            
+            // Đường ngang cuối (sau 1001)
+            ctx.beginPath();
+            ctx.moveTo(400, 400);
+            ctx.lineTo(100, 400);
+            ctx.stroke();
+            
+            // Cua cuối đường
+            ctx.beginPath();
+            ctx.moveTo(100, 400);
+            ctx.arcTo(50, 400, 50, 350, 50);
+            ctx.lineTo(50, 200); // Cụt (kết thúc)
+            ctx.stroke();
+
+            // Đặt lại vị trí xe cho map này
+            initialCarX = 100;
+            initialCarY = 750;
+            initialCarAngle = -Math.PI / 2; // Hướng lên
+            
+            saveHistory(); // Lưu map này là trạng thái đầu tiên
+            redrawAll(true);
+        }
+        
+        // Hàm phụ vẽ ngã ba tam giác
+        function drawTriangleJunction(x, y, vertical = true) {
+            ctx.save();
+            ctx.beginPath();
+            setupLineStyle();
+            ctx.lineWidth = 10;
+            if (vertical) {
+                ctx.moveTo(x - 20, y - 20);
+                ctx.lineTo(x, y);
+                ctx.lineTo(x + 20, y - 20);
+            } else { // Ngang (cho 1001)
+                ctx.moveTo(x - 20, y - 20);
+                ctx.lineTo(x, y);
+                ctx.lineTo(x - 20, y + 20);
+            }
+            ctx.stroke();
+            ctx.restore();
         }
         
 
         // --- QUẢN LÝ CHẾ ĐỘ VÀ CÔNG CỤ ---
-        // ... (Giữ nguyên 100% từ v5, bao gồm setMode, setDrawTool, ...) ...
         function resetDrawState() {
             drawState.clickCount = 0;
             drawState.p1 = null;
@@ -878,6 +1188,7 @@ Lý do: ${message}
             resetCarButton.disabled = false;
             saveMapButton.disabled = false;
             loadMapButton.disabled = false;
+            loadDefaultMapButton.disabled = false;
             simulationOptions.style.display = 'none'; 
             
             if (mode === 'draw') {
@@ -916,12 +1227,13 @@ Lý do: ${message}
                 clearMapButton.disabled = true; 
                 saveMapButton.disabled = true;
                 loadMapButton.disabled = true;
+                loadDefaultMapButton.disabled = true;
 
                 redrawAll(false);
                 mapImageData = ctx.getImageData(0, 0, canvas.width, canvas.height); 
                 
                 car.reset();
-                CarBrain.reset();
+                CarBrain.reset(); // Reset bộ não (gồm cả PID nạp từ UI)
                 isRunning = true;
                 simulationLoop();
             }
@@ -944,7 +1256,6 @@ Lý do: ${message}
         }
 
         // --- GÁN SỰ KIỆN CHO CÁC NÚT ---
-        // ... (Giữ nguyên các hàm gán sự kiện cho các nút từ v5) ...
         drawButton.addEventListener('click', () => setMode('draw'));
         placeCarButton.addEventListener('click', () => setMode('place_car'));
         simulateButton.addEventListener('click', () => setMode('simulate'));
@@ -971,13 +1282,24 @@ Lý do: ${message}
 
         clearMapButton.addEventListener('click', () => {
             if (currentMode !== 'simulate') { 
-                if (confirm('Bạn có chắc muốn xóa toàn bộ bản đồ đã vẽ?')) {
+                if (confirm('Bạn có chắc muốn xóa toàn bộ bản đồ (để vẽ map mới)?')) {
                     mapImageData = null;
                     initialCarX = 100;
                     initialCarY = 750; 
                     initialCarAngle = -Math.PI / 2;
-                    resetHistory(); 
-                    setMode('draw'); 
+                    resetHistory(); // Xóa sạch history
+                    saveHistory(); // Lưu trạng thái canvas trống
+                    redrawAll(true);
+                }
+            }
+        });
+        
+        // Nút tải map V29 (MỚI)
+        loadDefaultMapButton.addEventListener('click', () => {
+            if (currentMode !== 'simulate') {
+                if (confirm('Tải lại bản đồ V29 sẽ xóa bản đồ hiện tại của bạn. Bạn có chắc?')) {
+                    resetHistory();
+                    loadDefaultMap(); // Vẽ lại map
                 }
             }
         });
@@ -994,7 +1316,7 @@ Lý do: ${message}
             toggleGridButton.textContent = isGridVisible ? "Ẩn Lưới" : "Hiện Lưới";
             toggleGridButton.classList.toggle('bg-blue-200', isGridVisible);
             redrawAll(true);
-}       );
+        });
         lineWidthSlider.addEventListener('input', (e) => {
             const width = parseInt(e.target.value, 10);
             LINE_WIDTH = width;
@@ -1006,6 +1328,7 @@ Lý do: ${message}
             car.speed = speed;
             carSpeedValue.textContent = speed.toFixed(1);
         });
+        // (Không cần gán sự kiện cho PID input vì nó được đọc mỗi frame)
 
         undoButton.addEventListener('click', undo);
         redoButton.addEventListener('click', redo);
@@ -1051,7 +1374,6 @@ Lý do: ${message}
 
 
         // --- GÁN SỰ KIỆN VẼ BẰNG CHUỘT ---
-        // ... (Giữ nguyên 100% các hàm mouse event (mousedown, mousemove, mouseup, mouseleave) từ v5) ...
         function getMousePos(evt) {
             const rect = canvas.getBoundingClientRect();
             return {
@@ -1293,9 +1615,8 @@ Lý do: ${message}
         setMode('draw'); 
         setDrawTool('freehand'); 
         
-        clearCanvas();
         resetHistory();
-        redrawAll(true);
+        loadDefaultMap(); // TẢI BẢN ĐỒ V29 MẶC ĐỊNH
 
     </script>
 </body>
