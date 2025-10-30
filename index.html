@@ -3,19 +3,792 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trang Web Chào Mừng</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
+    <title>Trình mô phỏng Xe Dò Line (Công cụ vẽ)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        /* Con trỏ cho các chế độ */
+        canvas.draw-mode-freehand {
+            cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 20l-7.5-7.5 4.5-4.5L12 11l7.5 7.5L16 20z'/><path d='M12 11V4'/></svg>") 0 24, crosshair;
+        }
+        canvas.draw-mode-line {
+            cursor: crosshair;
+        }
+        canvas.draw-mode-eraser {
+             cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'><path d='M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z'/><path d='m15 5 3 3'/><path d='M6 16l-3 3.5a2.12 2.12 0 0 0 3 3L9.5 19'/></svg>") 0 24, crosshair;
+        }
+        canvas.simulate-mode {
+            cursor: default;
+        }
+        canvas.place-car-mode {
+            cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><path fill='black' d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z'/></svg>") 12 12, pointer;
+        }
+        
+        #logPanel::-webkit-scrollbar { width: 6px; }
+        #logPanel::-webkit-scrollbar-track { background: #4b5563; }
+        #logPanel::-webkit-scrollbar-thumb { background: #9ca3af; border-radius: 3px; }
 
-    <div class="container">
-        <h1 id="greeting"></h1>
-        
-        <p id="quote"></p>
-        
-        <button id="newQuoteBtn">Xem câu nói khác</button>
+        /* Kiểu cho nút công cụ được chọn */
+        .tool-button:disabled {
+            background-color: #3b82f6; /* bg-blue-600 */
+            color: white;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-4">
+
+    <h1 class="text-3xl font-bold text-gray-800 mb-4">Trình mô phỏng Xe Dò Line (Công cụ vẽ)</h1>
+
+    <!-- Bảng điều khiển chính -->
+    <div class="flex flex-wrap justify-center space-x-4 mb-2">
+        <button id="drawButton" class="px-5 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 disabled:opacity-50" title="Chuyển sang chế độ vẽ">
+            Vẽ
+        </button>
+        <button id="placeCarButton" class="px-5 py-2 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75 disabled:opacity-50" title="Click chuột để đặt vị trí và hướng xe">
+            Đặt Xe
+        </button>
+        <button id="simulateButton" class="px-5 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75" title="Chạy mô phỏng">
+            Chạy
+        </button>
+        <button id="stopButton" class="px-5 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75" title="Dừng mô phỏng" disabled>
+            Dừng
+        </button>
+        <button id="resetCarButton" class="px-5 py-2 bg-yellow-500 text-white font-semibold rounded-lg shadow-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-opacity-75" title="Đưa xe về vị trí xuất phát đã đặt">
+            Reset Xe
+        </button>
+        <button id="clearMapButton" class="px-5 py-2 bg-gray-700 text-white font-semibold rounded-lg shadow-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-600 focus:ring-opacity-75" title="Xóa toàn bộ bản đồ">
+            Xóa Map
+        </button>
     </div>
 
-    <script src="script.js"></script>
+    <!-- Thanh công cụ vẽ (chỉ hiển thị ở chế độ Vẽ) -->
+    <div id="drawingTools" class="flex flex-wrap justify-center space-x-2 mb-4 p-2 bg-gray-100 rounded-lg shadow">
+        <button id="toolFreehand" class="tool-button px-4 py-2 bg-white text-gray-800 rounded shadow hover:bg-blue-100 disabled:hover:bg-blue-600">
+            Vẽ Tự Do
+        </button>
+        <button id="toolLine" class="tool-button px-4 py-2 bg-white text-gray-800 rounded shadow hover:bg-blue-100 disabled:hover:bg-blue-600">
+            Đường Thẳng
+        </button>
+        <button id="toolArc" class="tool-button px-4 py-2 bg-white text-gray-800 rounded shadow hover:bg-blue-100 disabled:hover:bg-blue-600">
+            Cung (3-click)
+        </button>
+        <button id="toolTriangle" class="tool-button px-4 py-2 bg-white text-gray-800 rounded shadow hover:bg-blue-100 disabled:hover:bg-blue-600">
+            Tam Giác (3-click)
+        </button>
+        <button id="toolEraser" class="tool-button px-4 py-2 bg-white text-gray-800 rounded shadow hover:bg-blue-100 disabled:hover:bg-blue-600">
+            Tẩy
+        </button>
+        <button id="undoButton" class="tool-button px-4 py-2 bg-white text-gray-800 rounded shadow hover:bg-blue-100 disabled:opacity-50" disabled>
+            Undo
+        </button>
+        <button id="redoButton" class="tool-button px-4 py-2 bg-white text-gray-800 rounded shadow hover:bg-blue-100 disabled:opacity-50" disabled>
+            Redo
+        </button>
+    </div>
+
+    <!-- Khu vực chính: Canvas và Bảng Log -->
+    <div class="flex flex-col md:flex-row w-full max-w-screen-2xl">
+        <div class="flex-grow">
+            <canvas id="simulationCanvas" width="1200" height="800" class="rounded-lg shadow-lg border-2 border-gray-400"></canvas>
+        </div>
+
+        <div id="logPanelContainer" class="md:ml-4 mt-4 md:mt-0 w-full md:w-80 flex-shrink-0">
+            <div id="logPanel" class="bg-gray-800 text-white p-4 rounded-lg shadow-lg h-72 md:h-[804px] overflow-y-auto">
+                <h3 class="text-lg font-bold mb-2 text-white border-b border-gray-600 pb-2">Bảng Ghi Log</h3>
+                <pre id="logContent" class="text-sm text-gray-200">
+--- TRẠNG THÁI XE ---
+Chờ mô phỏng...
+
+--- CẢM BIẾN ---
+[SL, SR, ML, MR]
+[ 0,  0,  0,  0]
+
+--- BỘ NÃO (LOGIC) ---
+Trạng thái: Chờ
+Lỗi (Error): 0
+Điều chỉnh: 0.00
+
+--- ĐỘNG CƠ ---
+Trái: 0.00
+Phải: 0.00
+                </pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('simulationCanvas');
+        const ctx = canvas.getContext('2d');
+        const logContent = document.getElementById('logContent');
+        
+        // Nút điều khiển chính
+        const drawButton = document.getElementById('drawButton');
+        const placeCarButton = document.getElementById('placeCarButton');
+        const simulateButton = document.getElementById('simulateButton');
+        const stopButton = document.getElementById('stopButton');
+        const resetCarButton = document.getElementById('resetCarButton');
+        const clearMapButton = document.getElementById('clearMapButton');
+        
+        // Nút công cụ vẽ
+        const drawingTools = document.getElementById('drawingTools');
+        const toolFreehand = document.getElementById('toolFreehand');
+        const toolLine = document.getElementById('toolLine');
+        const toolArc = document.getElementById('toolArc');
+        const toolTriangle = document.getElementById('toolTriangle');
+        const toolEraser = document.getElementById('toolEraser');
+        const undoButton = document.getElementById('undoButton');
+        const redoButton = document.getElementById('redoButton');
+
+        // --- CẤU HÌNH ---
+        const LINE_COLOR = '#000000';
+        const BACKGROUND_COLOR = '#FFFFFF';
+        const LINE_WIDTH = 18;
+        const ERASER_WIDTH = 20;
+        const SENSOR_COLOR_ON = 'red';
+        const SENSOR_COLOR_OFF = 'green';
+        
+        // --- BIẾN TRẠNG THÁI ---
+        let currentMode = 'draw'; // 'draw', 'place_car', 'simulate'
+        let currentDrawTool = 'freehand'; // 'freehand', 'line', 'arc', 'triangle', 'eraser'
+        let isRunning = false;
+        let isDrawing = false; // Dùng cho cả 'freehand', 'line', 'eraser'
+        
+        let animationFrameId = null;
+        let mapImageData = null; // Lưu ảnh bản đồ khi chạy mô phỏng
+        
+        // Biến cho công cụ vẽ đường thẳng
+        let lineStartPoint = null;
+        let previewMapData = null; // Lưu ảnh bản đồ *trước khi* vẽ đường preview
+        
+        // Trạng thái cho các công cụ multi-click
+        let drawState = {
+            clickCount: 0,
+            p1: null,
+            p2: null
+        };
+        
+        // Trạng thái cho Undo/Redo
+        let history = [];
+        let historyIndex = -1;
+        
+        // Vị trí xuất phát của xe
+        let initialCarX = 100;
+        let initialCarY = 750; // Cập nhật Y cho map cao hơn
+        let initialCarAngle = -Math.PI / 2;
+
+        // Định nghĩa đối tượng Xe
+        const car = {
+            // ... (Giữ nguyên toàn bộ đối tượng 'car' như phiên bản trước) ...
+            x: initialCarX,
+            y: initialCarY,
+            width: 20,
+            height: 30,
+            angle: initialCarAngle,
+            speed: 1.5,
+            turnSpeed: 0.05,
+            sensors: [
+                { id: 'SL', x: -12, y: -15, value: 0 },
+                { id: 'SR', x: 12, y: -15, value: 0 },
+                { id: 'ML', x: -5, y: -18, value: 0 },
+                { id: 'MR', x: 5, y: -18, value: 0 }
+            ],
+            wheels: [
+                { x: -15, y: -10, width: 6, height: 12 },
+                { x: 15, y: -10, width: 6, height: 12 },
+                { x: -15, y: 10, width: 6, height: 12 },
+                { x: 15, y: 10, width: 6, height: 12 }
+            ],
+            draw: function() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+                ctx.fillStyle = 'blue';
+                ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
+                ctx.fillStyle = 'cyan';
+                ctx.beginPath();
+                ctx.moveTo(0, -this.height / 2 - 5);
+                ctx.lineTo(-5, -this.height / 2);
+                ctx.lineTo(5, -this.height / 2);
+                ctx.closePath();
+                ctx.fill();
+                this.wheels.forEach(wheel => {
+                    ctx.fillStyle = '#333';
+                    ctx.fillRect(wheel.x - wheel.width / 2, wheel.y - wheel.height / 2, wheel.width, wheel.height);
+                });
+                this.sensors.forEach(sensor => {
+                    ctx.fillStyle = sensor.value ? SENSOR_COLOR_ON : SENSOR_COLOR_OFF;
+                    ctx.beginPath();
+                    ctx.arc(sensor.x, sensor.y, 3, 0, 2 * Math.PI);
+                    ctx.fill();
+                });
+                ctx.restore();
+            },
+            update: function(leftSpeed, rightSpeed) {
+                const linearSpeed = (leftSpeed + rightSpeed) / 2;
+                const angularSpeed = (rightSpeed - leftSpeed) / this.width;
+                this.angle += angularSpeed * this.turnSpeed;
+                this.x += Math.cos(this.angle) * linearSpeed * this.speed;
+                this.y += Math.sin(this.angle) * linearSpeed * this.speed;
+            },
+            readSensors: function() {
+                this.sensors.forEach(sensor => {
+                    const cosA = Math.cos(this.angle);
+                    const sinA = Math.sin(this.angle);
+                    const sensorX = this.x + sensor.x * cosA - sensor.y * sinA;
+                    const sensorY = this.y + sensor.x * sinA + sensor.y * cosA;
+                    try {
+                        const pixelData = ctx.getImageData(Math.round(sensorX), Math.round(sensorY), 1, 1).data;
+                        const isBlack = pixelData[0] < 50 && pixelData[1] < 50 && pixelData[2] < 50;
+                        sensor.value = isBlack ? 1 : 0;
+                    } catch (e) {
+                        sensor.value = 0;
+                    }
+                });
+            },
+            reset: function() {
+                this.x = initialCarX;
+                this.y = initialCarY;
+                this.angle = initialCarAngle;
+            }
+        };
+
+        // --- BỘ NÃO XE (LOGIC CỦA BẠN) ---
+        const CarBrain = {
+            // ... (Giữ nguyên toàn bộ đối tượng 'CarBrain' như phiên bản trước) ...
+            lastError: 0,
+            integral: 0,
+            KP: 0.8,
+            KI: 0.001,
+            KD: 0.1,
+            reset: function() {
+                this.lastError = 0;
+                this.integral = 0;
+            },
+            update: function(sensors) {
+                const sL = sensors.find(s => s.id === 'SL').value;
+                const sR = sensors.find(s => s.id === 'SR').value;
+                const mL = sensors.find(s => s.id === 'ML').value;
+                const mR = sensors.find(s => s.id === 'MR').value;
+                let error = 0;
+                let logData = { status: "Đang dò line..." };
+                const baseSpeed = 1.0;
+                if (sL === 1 && sR === 0) {
+                    error = -1;
+                } else if (sL === 0 && sR === 1) {
+                    error = 1;
+                } else if (sL === 0 && sR === 0 && mL === 0 && mR === 0) {
+                    logData.status = "Mất line!";
+                    error = this.lastError > 0 ? 2 : -2;
+                } else if (sL === 1 && sR === 1) {
+                    error = 0;
+                    logData.status = "Trên vạch đôi / Ngã rẽ?";
+                } else if (sL === 0 && sR === 0 && mL === 1 && mR === 1) {
+                    error = 0;
+                } else {
+                    error = 0; 
+                }
+                const proportional = error;
+                this.integral += error;
+                if (this.integral > 20) this.integral = 20;
+                if (this.integral < -20) this.integral = -20;
+                const derivative = error - this.lastError;
+                this.lastError = error;
+                const correction = (this.KP * proportional) + (this.KI * this.integral) + (this.KD * derivative);
+                let leftSpeed = baseSpeed + correction;
+                let rightSpeed = baseSpeed - correction;
+                leftSpeed = Math.max(0, Math.min(1.5, leftSpeed));
+                rightSpeed = Math.max(0, Math.min(1.5, rightSpeed));
+                logData.error = error;
+                logData.integral = this.integral.toFixed(2);
+                logData.derivative = derivative.toFixed(2);
+                logData.correction = correction.toFixed(2);
+                logData.leftSpeed = leftSpeed.toFixed(2);
+                logData.rightSpeed = rightSpeed.toFixed(2);
+                return {
+                    motorSpeeds: { left: leftSpeed, right: rightSpeed },
+                    logData: logData
+                };
+            }
+        };
+        
+        // --- CÁC HÀM CẬP NHẬT GIAO DIỆN ---
+        function updateLogPanel(carState, sensors, carBrainLog) {
+            // ... (Giữ nguyên như phiên bản trước) ...
+            logContent.innerHTML = `
+--- TRẠNG THÁI XE ---
+X: ${carState.x.toFixed(2)}
+Y: ${carState.y.toFixed(2)}
+Góc: ${(carState.angle * 180 / Math.PI).toFixed(2)}°
+
+--- CẢM BIẾN ---
+[SL, SR, ML, MR]
+[ ${sensors.find(s => s.id === 'SL').value},  ${sensors.find(s => s.id === 'SR').value},  ${sensors.find(s => s.id === 'ML').value},  ${sensors.find(s => s.id === 'MR').value}]
+
+--- BỘ NÃO (LOGIC) ---
+Trạng thái: ${carBrainLog.status || "Đang tính..."}
+Lỗi (Error): ${carBrainLog.error}
+Tích phân (I): ${carBrainLog.integral || 0}
+Đạo hàm (D): ${carBrainLog.derivative || 0}
+Điều chỉnh: ${carBrainLog.correction || "0.00"}
+
+--- ĐỘNG CƠ ---
+Trái: ${carBrainLog.leftSpeed || "0.00"}
+Phải: ${carBrainLog.rightSpeed || "0.00"}
+            `;
+        }
+
+        // --- VÒNG LẶP MÔ PHỎNG (GAME LOOP) ---
+        function simulationLoop() {
+            // ... (Giữ nguyên như phiên bản trước) ...
+            if (!isRunning || currentMode !== 'simulate' || !mapImageData) return;
+            ctx.putImageData(mapImageData, 0, 0);
+            car.readSensors();
+            const decision = CarBrain.update(car.sensors);
+            const motorSpeeds = decision.motorSpeeds;
+            car.update(motorSpeeds.left, motorSpeeds.right);
+            car.draw();
+            updateLogPanel(car, car.sensors, decision.logData);
+            animationFrameId = requestAnimationFrame(simulationLoop);
+        }
+
+        function clearCanvas() {
+            ctx.fillStyle = BACKGROUND_COLOR;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // --- LỊCH SỬ (UNDO/REDO) ---
+        function saveHistory() {
+            // Xóa mọi trạng thái redo (tương lai) khi có hành động vẽ mới
+            history.splice(historyIndex + 1);
+            
+            // Thêm trạng thái hiện tại
+            history.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+            historyIndex++;
+            
+            updateUndoRedoButtons();
+        }
+
+        function undo() {
+            if (historyIndex > 0) {
+                historyIndex--;
+                ctx.putImageData(history[historyIndex], 0, 0);
+                updateUndoRedoButtons();
+            }
+        }
+
+        function redo() {
+            if (historyIndex < history.length - 1) {
+                historyIndex++;
+                ctx.putImageData(history[historyIndex], 0, 0);
+                updateUndoRedoButtons();
+            }
+        }
+
+        function updateUndoRedoButtons() {
+            undoButton.disabled = (historyIndex <= 0);
+            redoButton.disabled = (historyIndex >= history.length - 1);
+        }
+        
+        function resetHistory() {
+            history = [];
+            historyIndex = -1;
+            // Lưu trạng thái canvas trống ban đầu
+            saveHistory();
+        }
+
+        // --- QUẢN LÝ CHẾ ĐỘ VÀ CÔNG CỤ ---
+        
+        // Reset trạng thái vẽ của các công cụ multi-click
+        function resetDrawState() {
+            drawState.clickCount = 0;
+            drawState.p1 = null;
+            drawState.p2 = null;
+            
+            // Dòng này đã được sửa ở phiên bản trước, tiếp tục giữ
+            previewMapData = null; 
+            
+            isDrawing = false; // Đảm bảo isDrawing cũng reset
+            lineStartPoint = null;
+        }
+
+        function setDrawTool(tool) {
+            currentDrawTool = tool;
+            
+            // Reset trạng thái vẽ khi chuyển tool
+            resetDrawState();
+            
+            // Cập nhật kiểu nút
+            toolFreehand.disabled = (tool === 'freehand');
+            toolLine.disabled = (tool === 'line');
+            toolArc.disabled = (tool === 'arc');
+            toolTriangle.disabled = (tool === 'triangle');
+            toolEraser.disabled = (tool === 'eraser');
+            
+            // Cập nhật con trỏ canvas
+            canvas.classList.remove('draw-mode-freehand', 'draw-mode-line', 'draw-mode-eraser');
+            if (tool === 'freehand') {
+                canvas.classList.add('draw-mode-freehand');
+            } else if (tool === 'eraser') {
+                canvas.classList.add('draw-mode-eraser');
+            } else {
+                canvas.classList.add('draw-mode-line'); // Dùng con trỏ crosshair chung
+            }
+        }
+        
+        function setMode(mode) {
+            currentMode = mode;
+            isRunning = false; // Dừng mọi animation khi chuyển mode
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+            
+            // Xóa các class cursor cũ
+            canvas.classList.remove('draw-mode-freehand', 'draw-mode-line', 'draw-mode-eraser', 'place-car-mode', 'simulate-mode');
+            
+            // Cập nhật trạng thái nút
+            drawButton.disabled = false;
+            placeCarButton.disabled = false;
+            simulateButton.disabled = false;
+            stopButton.disabled = true;
+            clearMapButton.disabled = false;
+            resetCarButton.disabled = false;
+            
+            if (mode === 'draw') {
+                drawingTools.style.display = 'flex'; // Hiển thị công cụ vẽ
+                drawButton.disabled = true;
+                if (mapImageData) { // Nếu vừa dừng mô phỏng, tải lại map *trước đó*
+                     ctx.putImageData(mapImageData, 0, 0);
+                     mapImageData = null; // Xóa mapImageData để lần sau không bị nhầm
+                } else if (historyIndex > -1) {
+                    ctx.putImageData(history[historyIndex], 0, 0); // Khôi phục từ lịch sử
+                } else {
+                     clearCanvas();
+                }
+                drawCarAtCurrentInitialPosition();
+                // Đặt công cụ vẽ mặc định
+                setDrawTool(currentDrawTool); 
+                updateUndoRedoButtons(); // Cập nhật trạng thái nút undo/redo
+            } else if (mode === 'place_car') {
+                drawingTools.style.display = 'none'; // Ẩn công cụ vẽ
+                canvas.classList.add('place-car-mode');
+                placeCarButton.disabled = true;
+                // Không vẽ gì ở đây, drawCarAtCurrentInitialPosition sẽ làm
+                drawCarAtCurrentInitialPosition();
+            } else if (mode === 'simulate') {
+                drawingTools.style.display = 'none'; // Ẩn công cụ vẽ
+                canvas.classList.add('simulate-mode');
+                simulateButton.disabled = true;
+                stopButton.disabled = false;
+                drawButton.disabled = false;
+                placeCarButton.disabled = true;
+                clearMapButton.disabled = true; 
+
+                // Lưu bản đồ *trước khi* chạy, KHÔNG lưu vào history
+                mapImageData = ctx.getImageData(0, 0, canvas.width, canvas.height); 
+                car.reset();
+                CarBrain.reset();
+                isRunning = true;
+                simulationLoop();
+            }
+        }
+        
+        function drawCarAtCurrentInitialPosition() {
+            isRunning = false;
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+            
+            // *** SỬA LỖI MẤT MAP ***
+            // Luôn tải map từ lịch sử (trạng thái vẽ mới nhất)
+            if (historyIndex > -1) {
+                ctx.putImageData(history[historyIndex], 0, 0);
+            } else {
+                clearCanvas();
+            }
+            
+            const tempX = car.x;
+            const tempY = car.y;
+            const tempAngle = car.angle;
+            car.x = initialCarX;
+            car.y = initialCarY;
+            car.angle = initialCarAngle;
+            car.readSensors(); // Đọc cảm biến ở vị trí mới
+            car.draw();
+            car.x = tempX;
+            car.y = tempY;
+            car.angle = tempAngle;
+        }
+
+        // --- GÁN SỰ KIỆN CHO CÁC NÚT ---
+        drawButton.addEventListener('click', () => setMode('draw'));
+        placeCarButton.addEventListener('click', () => setMode('place_car'));
+        simulateButton.addEventListener('click', () => setMode('simulate'));
+        stopButton.addEventListener('click', () => setMode('draw'));
+
+        resetCarButton.addEventListener('click', () => {
+            isRunning = false;
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+            CarBrain.reset();
+            
+            // *** SỬA LỖI MẤT MAP ***
+            // Khi reset, phải đảm bảo map được vẽ lại từ history
+            // (Không dùng mapImageData vì đó là map lúc BẮT ĐẦU chạy)
+            if (historyIndex > -1) {
+                ctx.putImageData(history[historyIndex], 0, 0);
+            } else {
+                clearCanvas();
+            }
+            
+            drawCarAtCurrentInitialPosition(); // Vẽ xe ở vị trí ban đầu
+
+            // Nếu đang ở chế độ simulate (chạy lại)
+            if (currentMode === 'simulate') {
+                // Tải lại mapImageData (snapshot) cho vòng lặp
+                mapImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                car.reset(); // Reset xe lại lần nữa (an toàn)
+                isRunning = true;
+                simulationLoop();
+            }
+        });
+
+        clearMapButton.addEventListener('click', () => {
+            if (currentMode !== 'simulate') { 
+                if (confirm('Bạn có chắc muốn xóa toàn bộ bản đồ đã vẽ?')) {
+                    clearCanvas();
+                    mapImageData = null;
+                    initialCarX = 100;
+                    initialCarY = 750; // Cập nhật Y
+                    initialCarAngle = -Math.PI / 2;
+                    resetHistory(); // Xóa lịch sử và lưu trạng thái trống
+                    setMode('draw'); // Quay về chế độ vẽ sau khi xóa
+                }
+            }
+        });
+
+        // Gán sự kiện cho nút công cụ vẽ
+        toolFreehand.addEventListener('click', () => setDrawTool('freehand'));
+        toolLine.addEventListener('click', () => setDrawTool('line'));
+        toolArc.addEventListener('click', () => setDrawTool('arc'));
+        toolTriangle.addEventListener('click', () => setDrawTool('triangle'));
+        toolEraser.addEventListener('click', () => setDrawTool('eraser'));
+
+        // Gán sự kiện cho Undo/Redo
+        undoButton.addEventListener('click', undo);
+        redoButton.addEventListener('click', redo);
+
+
+        // --- GÁN SỰ KIỆN VẼ BẰNG CHUỘT (ĐÃ CẬP NHẬT) ---
+        function getMousePos(evt) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: evt.clientX - rect.left,
+                y: evt.clientY - rect.top
+            };
+        }
+        
+        function setupLineStyle() {
+            ctx.strokeStyle = LINE_COLOR;
+            ctx.lineWidth = LINE_WIDTH;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+        }
+        
+        function setupEraserStyle() {
+            ctx.strokeStyle = BACKGROUND_COLOR;
+            ctx.lineWidth = ERASER_WIDTH;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+        }
+
+        // --- Các hàm vẽ hình ---
+        
+        // Vẽ Cung (Quadratic Curve)
+        function drawArc(p1, p2, p3) {
+            setupLineStyle();
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.quadraticCurveTo(p2.x, p2.y, p3.x, p3.y);
+            ctx.stroke();
+        }
+        
+        // Vẽ Tam Giác
+        function drawTriangle(p1, p2, p3) {
+            setupLineStyle();
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.lineTo(p3.x, p3.y);
+            ctx.closePath(); // Nối về điểm đầu
+            ctx.stroke();
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            const pos = getMousePos(e);
+            
+            if (currentMode === 'draw') {
+                if (currentDrawTool === 'freehand') {
+                    isDrawing = true;
+                    setupLineStyle();
+                    ctx.beginPath();
+                    ctx.moveTo(pos.x, pos.y);
+                    previewMapData = ctx.getImageData(0, 0, canvas.width, canvas.height); // Lưu lại để có thể hủy
+                } else if (currentDrawTool === 'eraser') {
+                    isDrawing = true;
+                    setupEraserStyle();
+                    ctx.beginPath();
+                    ctx.moveTo(pos.x, pos.y);
+                    previewMapData = ctx.getImageData(0, 0, canvas.width, canvas.height); // Lưu lại để có thể hủy
+                } else if (currentDrawTool === 'line') {
+                    isDrawing = true;
+                    lineStartPoint = pos;
+                    // Lưu ảnh canvas *trước khi* bắt đầu vẽ đường preview
+                    previewMapData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                } else if (currentDrawTool === 'arc') {
+                    drawState.clickCount++;
+                    if (drawState.clickCount === 1) { // Click 1: Điểm bắt đầu
+                        drawState.p1 = pos;
+                        previewMapData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    } else if (drawState.clickCount === 2) { // Click 2: Điểm điều khiển
+                        drawState.p2 = pos;
+                    } else if (drawState.clickCount === 3) { // Click 3: Điểm kết thúc
+                        ctx.putImageData(previewMapData, 0, 0); // Quay lại trạng thái trước khi vẽ preview
+                        drawArc(drawState.p1, drawState.p2, pos); // Vẽ đường cong cuối cùng
+                        resetDrawState();
+                        saveHistory(); // Lưu vào lịch sử
+                    }
+                } else if (currentDrawTool === 'triangle') {
+                    drawState.clickCount++;
+                    if (drawState.clickCount === 1) { // Click 1: Đỉnh 1
+                        drawState.p1 = pos;
+                        previewMapData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    } else if (drawState.clickCount === 2) { // Click 2: Đỉnh 2
+                        drawState.p2 = pos;
+                    } else if (drawState.clickCount === 3) { // Click 3: Đỉnh 3
+                        ctx.putImageData(previewMapData, 0, 0); // Quay lại trạng thái trước khi vẽ preview
+                        drawTriangle(drawState.p1, drawState.p2, pos); // Vẽ tam giác cuối cùng
+                        resetDrawState();
+                        saveHistory(); // Lưu vào lịch sử
+                    }
+                }
+            } else if (currentMode === 'place_car') {
+                initialCarX = pos.x;
+                initialCarY = pos.y;
+                initialCarAngle = -Math.PI / 2; 
+                drawCarAtCurrentInitialPosition();
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (currentMode !== 'draw') return;
+            // Chỉ preview nếu đang kéo (freehand, line) hoặc đã click ít nhất 1 lần (arc, triangle)
+            if (!isDrawing && drawState.clickCount === 0) return; 
+
+            const pos = getMousePos(e);
+            
+            if (isDrawing && currentDrawTool === 'freehand') {
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke();
+            } else if (isDrawing && currentDrawTool === 'eraser') {
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke();
+            } else if (isDrawing && currentDrawTool === 'line') {
+                // Khôi phục canvas về trạng thái trước khi vẽ preview
+                ctx.putImageData(previewMapData, 0, 0);
+                // Vẽ đường thẳng preview
+                setupLineStyle();
+                ctx.beginPath();
+                ctx.moveTo(lineStartPoint.x, lineStartPoint.y);
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke();
+            } else if (currentDrawTool === 'arc') {
+                if (drawState.clickCount === 1) { // Đã có p1, preview đường thẳng tới pos
+                    ctx.putImageData(previewMapData, 0, 0);
+                    setupLineStyle();
+                    ctx.beginPath();
+                    ctx.moveTo(drawState.p1.x, drawState.p1.y);
+                    ctx.lineTo(pos.x, pos.y);
+                    ctx.stroke();
+                } else if (drawState.clickCount === 2) { // Đã có p1, p2, preview đường cong
+                    ctx.putImageData(previewMapData, 0, 0);
+                    drawArc(drawState.p1, drawState.p2, pos); // pos là p3 (điểm cuối)
+                }
+            } else if (currentDrawTool === 'triangle') {
+                if (drawState.clickCount === 1) { // Đã có p1, preview đường thẳng
+                    ctx.putImageData(previewMapData, 0, 0);
+                    setupLineStyle();
+                    ctx.beginPath();
+                    ctx.moveTo(drawState.p1.x, drawState.p1.y);
+                    ctx.lineTo(pos.x, pos.y);
+                    ctx.stroke();
+                } else if (drawState.clickCount === 2) { // Đã có p1, p2, preview tam giác
+                    ctx.putImageData(previewMapData, 0, 0);
+                    drawTriangle(drawState.p1, drawState.p2, pos); // pos là p3 (đỉnh 3)
+                }
+            }
+        });
+
+        canvas.addEventListener('mouseup', (e) => {
+            if (currentMode !== 'draw' || !isDrawing) return;
+            const pos = getMousePos(e);
+
+            if (currentDrawTool === 'freehand') {
+                isDrawing = false;
+                ctx.beginPath(); // Bắt đầu đường mới
+                saveHistory(); // Lưu trạng thái
+            } else if (currentDrawTool === 'eraser') {
+                isDrawing = false;
+                ctx.beginPath(); // Bắt đầu đường mới
+                saveHistory(); // Lưu trạng thái
+            } else if (currentDrawTool === 'line') {
+                isDrawing = false;
+                // Vẽ đường thẳng cuối cùng
+                ctx.putImageData(previewMapData, 0, 0); // Khôi phục
+                setupLineStyle();
+                ctx.beginPath();
+                ctx.moveTo(lineStartPoint.x, lineStartPoint.y);
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke(); // Vẽ cố định lên canvas
+                
+                // Reset trạng thái vẽ đường thẳng
+                resetDrawState();
+                saveHistory(); // Lưu trạng thái
+            }
+        });
+        
+        canvas.addEventListener('mouseleave', () => {
+            if (currentMode !== 'draw') return;
+            
+            // Nếu đang vẽ dở (kéo chuột) thì hủy
+            if (isDrawing) {
+                isDrawing = false;
+                if (previewMapData) {
+                    // Hủy đường preview/freehand, khôi phục ảnh gốc
+                    ctx.putImageData(previewMapData, 0, 0);
+                }
+                resetDrawState();
+            }
+            // Không hủy state của multi-click
+        });
+
+        // --- KHỞI TẠO ---
+        setMode('draw'); // Bắt đầu ở chế độ vẽ
+        setDrawTool('freehand'); // Đặt công cụ mặc định là vẽ tự do
+        
+        // Khởi tạo lịch sử
+        clearCanvas();
+        resetHistory();
+        drawCarAtCurrentInitialPosition();
+
+    </script>
 </body>
 </html>
+
