@@ -3,1580 +3,1140 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trình mô phỏng Xe Dò Line (v8 - Đã sửa vật lý)</title>
+    <title>Phân tích Robot Dò Line (V36) - Giao diện Split-View</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f3f4f6;
+            overflow: hidden; /* Ngăn cuộn body chính */
         }
-        /* ... (Toàn bộ CSS từ v7 được giữ nguyên) ... */
-        canvas.draw-mode-freehand { cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 20l-7.5-7.5 4.5-4.5L12 11l7.5 7.5L16 20z'/><path d='M12 11V4'/></svg>") 0 24, crosshair; }
-        canvas.draw-mode-line { cursor: crosshair; }
-        canvas.draw-mode-rect { cursor: crosshair; }
-        canvas.draw-mode-eraser { cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'><path d='M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z'/><path d='m15 5 3 3'/><path d='M6 16l-3 3.5a2.12 2.12 0 0 0 3 3L9.5 19'/></svg>") 0 24, crosshair; }
-        canvas.simulate-mode { cursor: default; }
-        canvas.place-car-mode { cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><path fill='black' d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z'/></svg>") 12 12, pointer; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         
-        #logPanel::-webkit-scrollbar, #codeEditor::-webkit-scrollbar { width: 6px; }
-        #logPanel::-webkit-scrollbar-track, #codeEditor::-webkit-scrollbar-track { background: #4b5563; }
-        #logPanel::-webkit-scrollbar-thumb, #codeEditor::-webkit-scrollbar-thumb { background: #9ca3af; border-radius: 3px; }
-
-        .tool-button:disabled {
-            background-color: #3b82f6;
-            color: white;
-            opacity: 1;
+        pre code {
+            display: block;
+            background: #1f2937; /* bg-gray-800 */
+            color: #e2e8f0;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.875rem;
+            line-height: 1.6;
+            /* Đặt max-height để cuộn bên trong nếu cần, dù parent đã overflow-y */
+            max-height: 90vh; 
         }
         
-        .grid-background {
-            background-image:
-                linear-gradient(to right, #e5e7eb 1px, transparent 1px),
-                linear-gradient(to bottom, #e5e7eb 1px, transparent 1px);
-            background-size: 20px 20px;
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 400px;
+            max-height: 50vh;
         }
-
-        #codeEditor {
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 0.9rem;
-            line-height: 1.4;
-            background-color: #1f2937;
-            color: #d1d5db;
-            border: 1px solid #4b5563;
+        
+        h2 {
+            font-size: 1.875rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            margin-top: 2rem;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 0.5rem;
+        }
+        /* Hiệu ứng cho tiêu đề có thể click */
+        h3[onclick] {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            margin-top: 1.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
             border-radius: 0.375rem;
+            padding: 0.5rem;
+            margin-left: -0.5rem;
+            margin-right: -0.5rem;
+        }
+        h3[onclick]:hover {
+            background-color: #f3f4f6; /* bg-gray-100 */
+            color: #2563eb; /* text-blue-600 */
+        }
+
+        p, ul, li {
+            margin-bottom: 1rem;
+            line-height: 1.75;
+        }
+        ul {
+            list-style-type: disc;
+            list-style-position: inside;
+            padding-left: 1rem;
+        }
+        code:not(pre code) {
+            background-color: #e2e8f0;
+            color: #2d3748;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-family: 'Consolas', 'Monaco', monospace;
         }
         
-        #aiModal {
-            transition: opacity 0.3s ease-in-out;
+        /* Class highlight cho code */
+        .highlight {
+            background-color: #fef08a; /* bg-yellow-300 */
+            color: #1f2937; /* text-gray-800 */
+            border-radius: 3px;
+            padding: 2px 0;
+            box-shadow: 0 0 10px #fef08a;
+            transition: all 0.3s ease;
         }
-        #aiModalContent {
-            max-height: 80vh;
-        }
-        #aiModalContent article h1 { font-size: 1.5rem; font-weight: bold; margin-top: 1rem; }
-        #aiModalContent article h2 { font-size: 1.25rem; font-weight: bold; margin-top: 0.75rem; }
-        #aiModalContent article ul { list-style-type: disc; margin-left: 1.5rem; }
-        #aiModalContent article code { background-color: #374151; color: #f9fafb; padding: 0.125rem 0.25rem; border-radius: 0.25rem; }
-        #aiModalContent article pre { background-color: #1f2937; color: #d1d5db; padding: 0.5rem; border-radius: 0.375rem; overflow-x: auto; }
-
     </style>
+    <!-- Chosen Palette: Subtle Blue and Gray -->
+    <!-- Application Structure Plan: 
+        Đã thay đổi hoàn toàn cấu trúc từ tab sang Split-View (chia đôi màn hình).
+        1. Layout: `flex flex-col md:flex-row` cho 2 pane chính.
+        2. Pane Trái: Báo cáo phân tích (`panel-report`). Có `overflow-y-auto` để cuộn độc lập.
+        3. Pane Phải: Mã nguồn (`panel-code`). Có `overflow-y-auto` để cuộn độc lập.
+        4. Tương tác "Click-to-Guide": Các tiêu đề `h3` trong pane trái có `onclick="scrollToCode('...')`.
+        5. JavaScript `scrollToCode`: Hàm này sẽ tìm văn bản (`searchText`) trong `code-content` (pane phải), 
+           thay thế nó bằng một `<span class="highlight">` được bọc lại, 
+           sử dụng `scrollIntoView()` để cuộn đến đó, 
+           và sau 3 giây thì xóa highlight để khôi phục code gốc.
+        Lý do: Cấu trúc này trực quan hơn cho việc *phân tích* code, cho phép người dùng xem báo cáo và
+        code liên quan ngay bên cạnh nhau thay vì phải chuyển tab.
+    -->
+    <!-- Visualization & Content Choices:
+        1. Report Content: Hiển thị trong pane trái.
+        2. Report Logic Chart: Giữ lại (Chart.js), hiển thị trong pane trái.
+        3. Code Content: Hiển thị trong pane phải (`<pre><code>`).
+        4. (ĐÃ XÓA) Tất cả các tính năng AI (TTS, Gemini text/json/image).
+        5. (MỚI) Tương tác Click-to-Scroll: Goal: Liên kết trực tiếp báo cáo với code. Presentation: `h3[onclick]` ở pane trái. Interaction: Kích hoạt JS `scrollToCode()` để highlight và cuộn pane phải. Justification: Đây là yêu cầu cốt lõi của người dùng để làm cho việc phân tích trực quan hơn.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
 </head>
-<body class="flex flex-col items-center justify-center min-h-screen p-4">
+<body class="bg-gray-50 text-gray-800 flex flex-col h-screen antialiased">
 
-    <h1 class="text-3xl font-bold text-gray-800 mb-4">Trình mô phỏng Xe Dò Line (v8 - Đã sửa vật lý)</h1>
+    <!-- HEADER -->
+    <header class="text-center py-6 bg-white shadow-md z-20">
+        <h1 class="text-3xl md:text-4xl font-bold text-gray-900">Phân tích Robot Dò Line (V36)</h1>
+        <p class="text-md text-gray-600 mt-1">Giao diện Phân tích Code Tương tác (Split-Screen)</p>
+    </header>
 
-    <!-- Bảng điều khiển chính -->
-    <div class="flex flex-wrap justify-center gap-2 mb-2">
-        <button id="drawButton" class="px-5 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 disabled:opacity-50" title="Chuyển sang chế độ vẽ">
-            Vẽ
-        </button>
-        <button id="placeCarButton" class="px-5 py-2 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75 disabled:opacity-50" title="Click và Kéo để đặt vị trí và hướng xe">
-            Đặt Xe
-        </button>
-        <button id="simulateButton" class="px-5 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75" title="Chạy mô phỏng">
-            Chạy
-        </button>
-        <button id="stopButton" class="px-5 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75" title="Dừng mô phỏng" disabled>
-            Dừng
-        </button>
-        <button id="resetCarButton" class="px-5 py-2 bg-yellow-500 text-white font-semibold rounded-lg shadow-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-opacity-75" title="Đưa xe về vị trí xuất phát đã đặt">
-            Reset Xe
-        </button>
-        <button id="clearMapButton" class="px-5 py-2 bg-gray-700 text-white font-semibold rounded-lg shadow-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-600 focus:ring-opacity-75" title="Xóa toàn bộ bản đồ (để vẽ map mới)">
-            Xóa Map
-        </button>
-        <button id="loadDefaultMapButton" class="px-4 py-2 bg-teal-600 text-white font-semibold rounded-lg shadow-md hover:bg-teal-700" title="Tải lại bản đồ thi đấu mặc định">
-            Tải Map V29
-        </button>
-        <button id="saveMapButton" class="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700" title="Sao chép dữ liệu map hiện tại vào clipboard">
-            Lưu Map
-        </button>
-        <button id="loadMapButton" class="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700" title="Tải map tùy chỉnh từ chuỗi text">
-            Tải Map
-        </button>
-    </div>
+    <!-- MAIN CONTENT (Split Screen) -->
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden">
+        
+        <!-- === PANE TRÁI: BÁO CÁO PHÂN TÍCH === -->
+        <div id="panel-report" class="md:w-1/2 h-full overflow-y-auto p-6 md:p-10 bg-white shadow-lg z-10 border-r border-gray-200">
+            <section id="bao-cao">
+                <h1 class="text-3xl font-bold mb-6 text-gray-900">Báo cáo Phân tích Code: Xe Dò Line (V36)</h1>
+                <p>Tài liệu này giải thích chi tiết toàn bộ mã nguồn của file <code>LineFollower_V36.ino</code>. Bấm vào các tiêu đề <code>h3</code> bên dưới để tự động cuộn đến phần code tương ứng ở bên phải.</p>
 
-    <!-- Thanh công cụ vẽ -->
-    <div id="drawingTools" class="flex flex-wrap justify-center items-center gap-2 mb-4 p-2 bg-gray-100 rounded-lg shadow">
-        <button id="toolFreehand" class="tool-button px-3 py-2 bg-white text-gray-800 rounded shadow hover:bg-blue-100 disabled:hover:bg-blue-600">Vẽ Tự Do</button>
-        <button id="toolLine" class="tool-button px-3 py-2 bg-white text-gray-800 rounded shadow hover:bg-blue-100 disabled:hover:bg-blue-600">Đường Thẳng</button>
-        <button id="toolArc" class="tool-button px-3 py-2 bg-white text-gray-800 rounded shadow hover:bg-blue-100 disabled:hover:bg-blue-600">Cung (3-click)</button>
-        <button id="toolTriangle" class="tool-button px-3 py-2 bg-white text-gray-800 rounded shadow hover:bg-blue-100 disabled:hover:bg-blue-600">Tam Giác (3-click)</button>
-        <button id="toolRect" class="tool-button px-3 py-2 bg-white text-gray-800 rounded shadow hover:bg-blue-100 disabled:hover:bg-blue-600">Chữ Nhật</button>
-        <button id="toolEraser" class="tool-button px-3 py-2 bg-white text-gray-800 rounded shadow hover:bg-blue-100 disabled:hover:bg-blue-600">Tẩy</button>
-        <button id="undoButton" class="tool-button px-3 py-2 bg-white text-gray-800 rounded shadow hover:bg-blue-100 disabled:opacity-50" disabled>Undo</button>
-        <button id="redoButton" class="tool-button px-3 py-2 bg-white text-gray-800 rounded shadow hover:bg-blue-100 disabled:opacity-50" disabled>Redo</button>
-        <button id="toggleGridButton" class="tool-button px-3 py-2 bg-white text-gray-800 rounded shadow hover:bg-blue-100">Hiện Lưới</button>
-        <div class="flex items-center space-x-2 bg-white p-2 rounded shadow">
-            <label for="lineWidthSlider" class="text-sm">Nét vẽ:</label>
-            <input id="lineWidthSlider" type="range" min="2" max="50" value="18" class="w-24">
+                <h2 onclick="scrollToCode('MỤC TIÊU CỦA DỰ ÁN')" class="cursor-pointer hover:text-blue-600">PHẦN 1: TỔNG QUAN VÀ CẤU TRÚC</h2>
+
+                <h3 onclick="scrollToCode('MỤC TIÊU CỦA DỰ ÁN')">1.1. Mục tiêu của Dự án</h3>
+                <p>Mã nguồn này điều khiển một robot 4 bánh (sử dụng 2 cầu H trong shield AFMotor) với hai chức năng chính:</p>
+                <ul>
+                    <li><strong>Dò line (Line Following):</strong> Tự động đi theo một vạch đen trên nền trắng.</li>
+                    <li><strong>Tránh vật cản (Obstacle Avoidance):</strong> Sử dụng cảm biến siêu âm gắn trên một động cơ servo. Khi phát hiện vật cản, robot sẽ dừng, quét servo để tìm không gian trống (trái hoặc phải) và thực hiện một động tác rẽ chữ U để vòng qua vật cản.</li>
+                </ul>
+
+                <h3 onclick="scrollToCode('LOGIC NỔI BẬT')">1.2. Các Logic Nổi bật (Phiên bản V36)</h3>
+                <p>Đây là phiên bản đã trải qua nhiều cải tiến, với các logic quan trọng:</p>
+                <ul>
+                    <li><strong>PID Thích ứng (Adaptive PID):</strong> Tự động thay đổi hệ số <code>Kp</code> (hệ số P) dựa trên độ ổn định của robot. Nếu robot chạy thẳng và ổn định, nó sẽ tăng tốc và giảm <code>Kp</code>. Nếu robot mất ổn định (vào cua), nó sẽ giảm tốc và tăng <code>Kp</code> để bám đường tốt hơn.</li>
+                    <li><strong>Grace Period (10 giây đầu):</strong> Trong 10 giây đầu tiên, robot chỉ dùng 2 cảm biến giữa (S2, S3) để dò line PID đơn thuần. Tất cả các logic rẽ (ngã tư, cua gắt) dùng S1 và S4 đều bị vô hiệu hóa. Điều này giúp robot khởi động ổn định.</li>
+                    <li><strong>Xử lý Ngã rẽ Thông minh (V34 Logic):</strong> Hàm <code>performTurn()</code> (thực hiện rẽ) được thiết kế để không bị "lừa" ở ngã ba tam giác. Khi rẽ phải, nó tìm trạng thái <code>xx10</code> (S3 thấy line, S4 không thấy). Khi rẽ trái, nó tìm <code>01xx</code> (S2 thấy line, S1 không thấy).</li>
+                    <li><strong>Xử lý Mất Line Thông minh (V30 Logic):</strong> Khi mất line (<code>0000</code>), robot không dừng lại. Nó sẽ cố gắng tìm line trong 500ms, và nếu vẫn không thấy, nó sẽ chuyển sang chế độ "xoay tròn tại chỗ" để tích cực tìm kiếm thay vì "bỏ cuộc".</li>
+                    <li><strong>Xử lý Trường hợp Đặc biệt (V35 Logic):</strong> Thêm một trường hợp ưu tiên <code>1001</code> (S1 và S4 cùng thấy line), thường xảy ra ở ngã ba hẹp, và ưu tiên rẽ trái.</li>
+                </ul>
+
+                <h2 onclick="scrollToCode('PHÂN TÍCH CÁC KHỐI CODE')" class="cursor-pointer hover:text-blue-600">PHẦN 2: PHÂN TÍCH CÁC KHỐI CODE</h2>
+
+                <h3 onclick="scrollToCode('Thư viện và Cấu hình')">2.1. Thư viện và Cấu hình (Defines & Globals)</h3>
+                <ul>
+                    <li><strong>Thư viện:</strong> <code>&lt;AFMotor.h&gt;</code> (điều khiển động cơ), <code>&lt;Servo.h&gt;</code> (điều khiển servo).</li>
+                    <li><strong>Hằng số Cấu hình:</strong>
+                        <ul>
+                            <li><code>MIN_PWM 80</code>: Ngưỡng PWM tối thiểu để động cơ khởi động.</li>
+                            <li><code>LEFT_OFFSET</code>, <code>RIGHT_OFFSET</code>: Hệ số hiệu chỉnh tốc độ 2 bên để robot đi thẳng.</li>
+                            <li><code>LOST_LINE_TIMEOUT 500</code>: Thời gian (ms) robot cố gắng tìm line trước khi xoay tại chỗ.</li>
+                            <li><code>INITIAL_GRACE_PERIOD 10000</code>: 10 giây đầu khởi động chỉ dùng 2 cảm biến giữa.</li>
+                            <li><code>SCAN_LEFT 160</code>, <code>SCAN_CENTER 90</code>, <code>SCAN_RIGHT 20</code>: Các góc quét servo.</li>
+                            <li><code>OBSTACLE_DISTANCE 15</code>: Khoảng cách (cm) kích hoạt tránh vật cản.</li>
+                        </ul>
+                    </li>
+                    <li><strong>Biến Toàn cục:</strong>
+                        <ul>
+                            <li><code>SENSOR_MIN_CALI</code>, <code>SENSOR_MAX_CALI</code>: Lưu giá trị hiệu chỉnh (trắng/đen) của cảm biến.</li>
+                            <li><code>threshold_for_turn</code>: Ngưỡng để quyết định là "thấy line đen".</li>
+                            <li><code>sens[]</code>: Mảng 4 pin cảm biến (S1-S4).</li>
+                            <li><strong>Biến PID:</strong> <code>error</code>, <code>P</code>, <code>I</code>, <code>D</code>, <code>previous_error</code>, <code>pre_pos</code>.</li>
+                            <li><strong>Biến Trạng thái:</strong> <code>isTurning</code>, <code>isAvoidingObstacle</code>.</li>
+                            <li><code>programStartTime</code>: Lưu thời điểm bắt đầu để tính "Grace Period".</li>
+                        </ul>
+                    </li>
+                </ul>
+
+                <h3 onclick="scrollToCode('CÁC HÀM ĐIỀU KHIỂN ĐỘNG CƠ')">2.2. Các hàm Điều khiển Động cơ</h3>
+                <p><code>setLeftMotors(int speed)</code> và <code>setRightMotors(int speed)</code>:</p>
+                <p>Các hàm này không chỉ đặt tốc độ. Chúng thực hiện 3 logic:
+                    1. Áp dụng hệ số <code>OFFSET</code> để cân bằng tốc độ hai bên.
+                    2. Kiểm tra <code>MIN_PWM</code>: Nếu tốc độ yêu cầu quá thấp, hàm sẽ dừng động cơ (<code>speed = 0</code>) để tránh "ì".
+                    3. Quyết định <code>FORWARD</code>, <code>BACKWARD</code>, hoặc <code>RELEASE</code> (thả nổi) dựa trên giá trị <code>speed</code> cuối cùng.
+                </p>
+
+                <h3 onclick="scrollToCode('CÁC HÀM CẢM BIẾN VÀ LOGIC')">2.3. Các hàm Cảm biến và Logic Phụ</h3>
+                <ul>
+                    <li onclick="scrollToCode('manual_calibration()')"><code>manual_calibration()</code>: Chạy 5 giây trong <code>setup()</code>, lia robot qua vạch đen và nền trắng để tìm giá trị <code>SENSOR_MIN_CALI</code> và <code>SENSOR_MAX_CALI</code>, từ đó tính ra <code>threshold_for_turn</code>.</li>
+                    <li onclick="scrollToCode('checkUltrasonicDistance()')"><code>checkUltrasonicDistance()</code>: Phát xung và đo thời gian phản hồi của cảm biến siêu âm, trả về khoảng cách (cm). Trả về <code>999.0</code> nếu bị timeout.</li>
+                    <li onclick="scrollToCode('scanSurroundings()')"><code>scanSurroundings()</code>: Được gọi khi gặp vật cản. Servo quét trái (đo <code>distLeft</code>) và quét phải (đo <code>distRight</code>), sau đó quay về giữa. Trả về <code>true</code> (rẽ phải) nếu bên phải thoáng hơn, ngược lại trả về <code>false</code> (rẽ trái).</li>
+                    <li onclick="scrollToCode('performAvoidance()')"><code>performAvoidance()</code>: Một "Máy Trạng Thái" (State Machine) điều khiển robot thực hiện 4 bước rẽ chữ U: (1) Quay 90 độ, (2) Đi thẳng, (3) Quay 90 độ ngược lại, (4) Đi thẳng tìm line.</li>
+                    <li onclick="scrollToCode('performTurn()')"><code>performTurn()</code>: Hàm này được gọi liên tục khi <code>isTurning = true</code>. Nó rất thông minh:
+                        <ul>
+                            <li>Khi rẽ phải, nó chỉ dừng khi thấy <code>s3 && !s4</code> (trạng thái <code>xx10</code>).</li>
+                            <li>Khi rẽ trái, nó chỉ dừng khi thấy <code>s2 && !s1</code> (trạng thái <code>01xx</code>).</li>
+                        </ul>
+                    </li>
+                </ul>
+                
+                <hr class="my-8">
+
+                <section id="visualization">
+                    <h2 class="text-3xl font-bold mb-6 text-gray-900">Trực quan hóa Logic Dò Line</h2>
+                    <p class="mb-6">Hàm <code>linetracingMode()</code> là trái tim của robot. Biểu đồ dưới đây tóm tắt các nhóm logic chính mà robot xử lý (không bao gồm "Grace Period").</p>
+                    
+                    <div class="chart-container">
+                        <canvas id="logicCasesChart"></canvas>
+                    </div>
+                    <p class="text-center text-sm text-gray-600 mt-2">Biểu đồ thể hiện các nhóm logic trong hàm <code>linetracingMode()</code></p>
+                </section>
+                
+                <hr class="my-8">
+
+                <h2 onclick="scrollToCode('linetracingMode()')" class="cursor-pointer hover:text-blue-600">PHẦN 3: HÀM `linetracingMode()` (TRÁI TIM CỦA ROBOT)</h2>
+                <p>Đây là hàm phức tạp nhất. Nó quyết định robot làm gì khi không bận (không <code>isTurning</code> hoặc <code>isAvoidingObstacle</code>).</p>
+                <ol class="list-decimal list-inside space-y-2">
+                    <li><strong>Đọc và Chuẩn hóa Cảm biến:</strong> Đọc giá trị 0-1023, chuẩn hóa về 0.0-1.0 (<code>eachError[]</code>), sau đó chuyển sang <code>bool</code> (true/false).</li>
+                    <li onclick="scrollToCode('Logic &quot;Grace Period&quot;')"><strong>Logic "Grace Period" (V35):</strong> Nếu đang trong 10 giây đầu, ép <code>s1 = false</code> và <code>s4 = false</code>, vô hiệu hóa tất cả các logic rẽ.</li>
+                    <li><strong>Hệ thống Phân loại (Các CASE - Sắp xếp theo thứ tự ưu tiên):</strong>
+                        <ul>
+                            <li onclick="scrollToCode('CASE 1.5')"><code>CASE 1.5 (1001)</code>: (Sau 10s) Ưu tiên rẽ trái. <strong>Ưu tiên cao nhất.</strong></li>
+                            <li onclick="scrollToCode('CASE 2')"><code>CASE 2 (1111)</code>: (Sau 10s) Ngã tư. Kích hoạt <code>performTurn()</code> (rẽ phải).</li>
+                            <li onclick="scrollToCode('CASE 3A')"><code>CASE 3A (1110) / 3B (0111)</code>: (Sau 10s) Cua gắt/Ngã rẽ. Kích hoạt <code>performTurn()</code> (trái/phải).</li>
+                            <li onclick="scrollToCode('CASE 4A')"><code>CASE 4A (0100) / 4B (0010)</code>: Line hơi lệch. Chỉnh nhẹ.</li>
+                            <li onclick="scrollToCode('CASE 4C')"><code>CASE 4C (1000) / 4D (0001)</code>: (Sau 10s) Line lệch hẳn ra ngoài. Xoay tại chỗ (-200/200) để tìm.</li>
+                            <li onclick="scrollToCode('CASE 5')"><code>CASE 5 (0000)</code>: Mất line. Cố gắng tìm trong 500ms, sau đó xoay tròn tại chỗ.</li>
+                            <li onclick="scrollToCode('CASE 6')"><code>CASE 6 (Else)</code>: <strong>Dò line PID (Trường hợp bình thường).</strong>
+                                <ul>
+                                    <li><strong>PID (Grace Period):</strong> Trong 10s đầu, <code>pos_pid</code> chỉ được tính bằng S2 và S3.</li>
+                                    <li><strong>PID (Thích ứng Kp):</strong> Nếu <code>stabilityCounter > 20</code> (ổn định), robot chạy nhanh hơn (tốc độ 240) và <code>Kp</code> thấp (40.0). Ngược lại, robot chạy chậm hơn (210) và <code>Kp</code> cao (100.0).</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </li>
+                </ol>
+
+                <h2 onclick="scrollToCode('HÀM SETUP VÀ LOOP CHÍNH')" class="cursor-pointer hover:text-blue-600">PHẦN 4: VÒNG LẶP CHÍNH (`setup()` và `loop()`)</h2>
+                <ul>
+                    <li onclick="scrollToCode('void setup()')"><code>setup()</code>:
+                        <ol class="list-decimal list-inside ml-4">
+                            <li>Khởi tạo <code>Serial</code>, <code>pinMode</code>, <code>Servo</code>.</li>
+                            <li><strong>Chạy <code>manual_calibration()</code></strong> (rất quan trọng).</li>
+                            <li><strong>Gán <code>programStartTime = millis()</code></strong> (bắt đầu đếm 10 giây).</li>
+                            <li>Gán <code>robotState = 1</code> (Tự động BẬT).</li>
+                        </ol>
+                    </li>
+                    <li onclick="scrollToCode('void loop()')"><code>loop()</code>: Đây là "bộ não" quyết định thứ tự ưu tiên:
+                        <ol class="list-decimal list-inside ml-4">
+                            <li><strong>Ưu tiên 1:</strong> <code>isAvoidingObstacle</code>? Nếu <code>true</code>, chạy <code>performAvoidance()</code> và <code>return</code>.</li>
+                            <li><strong>Ưu tiên 2:</strong> <code>robotState == 0</code>? Nếu <code>true</code>, dừng robot và <code>return</code>.</li>
+                            <li><strong>Ưu tiên 3:</strong> Kiểm tra vật cản. Nếu có VÀ robot rảnh, bắt đầu quy trình tránh.</li>
+                            <li><strong>Ưu tiên 4:</strong> Nếu không có gì ở trên, chạy <code>linetracingMode()</code>.</li>
+                        </ol>
+                    </li>
+                </ul>
+            </section>
         </div>
-    </div>
-
-    <!-- Tùy chọn mô phỏng -->
-    <div id="simulationOptions" class="flex flex-wrap justify-center items-center gap-2 mb-4 p-2 bg-gray-100 rounded-lg shadow">
-        <div class="flex items-center space-x-2 bg-white p-2 rounded shadow">
-            <label for="carSpeedSlider" class="text-sm">Tốc độ xe:</label>
-            <input id="carSpeedSlider" type="range" min="0.5" max="5" step="0.1" value="1.5" class="w-32">
-            <span id="carSpeedValue" class="text-sm w-8 text-right">1.5</span>
-        </div>
-        <!-- (CẬP NHẬT V8) Tùy chỉnh hằng số PID (Giá trị mặc định đã giảm 100 lần) -->
-        <div class="flex items-center space-x-2 bg-white p-2 rounded shadow">
-            <label for="pid_KP" class="text-sm">KP:</label>
-            <input id="pid_KP" type="number" value="0.5" step="0.1" class="w-16 p-1 border rounded">
-            <label for="pid_KI" class="text-sm">KI:</label>
-            <input id="pid_KI" type="number" value="0.001" step="0.001" class="w-16 p-1 border rounded">
-            <label for="pid_KD" class="text-sm">KD:</label>
-            <input id="pid_KD" type="number" value="0.1" step="0.1" class="w-16 p-1 border rounded">
-        </div>
-    </div>
-
-    <!-- Khu vực chính: Canvas và Cột bên phải -->
-    <div class="flex flex-col md:flex-row w-full max-w-screen-2xl">
-        <!-- Canvas -->
-        <div class="flex-grow">
-            <canvas id="simulationCanvas" width="1200" height="800" class="rounded-lg shadow-lg border-2 border-gray-400"></canvas>
-        </div>
-
-        <!-- Cột bên phải (Log, Code Editor, AI Tools) -->
-        <div id="rightColumn" class="md:ml-4 mt-4 md:mt-0 w-full md:w-96 flex-shrink-0 flex flex-col gap-4">
-            <!-- Bảng Log -->
-            <div id="logPanelContainer" class="flex-shrink-0">
-                <div id="logPanel" class="bg-gray-800 text-white p-4 rounded-lg shadow-lg h-72 md:h-80 overflow-y-auto">
-                    <h3 class="text-lg font-bold mb-2 text-white border-b border-gray-600 pb-2">Bảng Ghi Log</h3>
-                    <pre id="logContent" class="text-sm text-gray-200">
---- TRẠNG THÁI XE ---
-Chờ mô phỏng...
-                    </pre>
-                </div>
-            </div>
-            
-            <!-- Trình soạn thảo code -->
-            <div id="codeEditorContainer" class="flex-grow flex flex-col">
-                <h3 class="text-lg font-bold mb-2 text-gray-800">Trình soạn thảo Code (Bộ Não Xe)</h3>
-                <textarea id="codeEditor" class="w-full flex-grow h-64 md:h-auto" style="min-height: 250px;"></textarea>
-                <button id="loadCodeButton" class="mt-2 w-full px-5 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500">
-                    Nạp Code (Cập nhật Bộ Não)
+        
+        <!-- === PANE PHẢI: MÃ NGUỒN === -->
+        <div id="panel-code" class="md:w-1/2 h-full overflow-y-auto p-6 md:p-10 bg-gray-900 text-gray-300">
+            <div class="relative">
+                <button onclick="copyCode()" id="copy-btn" class="absolute top-4 right-4 bg-gray-700 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 z-10">
+                    Sao chép Mã
                 </button>
-            </div>
-            
-            <!-- Bảng điều khiển AI -->
-            <div id="aiControls" class="flex flex-col gap-2 p-4 bg-gray-100 rounded-lg shadow">
-                 <h3 class="text-lg font-bold text-gray-800">Công cụ Gemini AI ✨</h3>
-                 <textarea id="aiPromptInput" class="w-full h-24 p-2 border border-gray-300 rounded-md" placeholder="Mô tả logic bạn muốn (ví dụ: 'rẽ trái khi 2 cảm biến trái chạm vạch') hoặc đặt câu hỏi về code..."></textarea>
-                 <div class="flex gap-2">
-                    <button id="generateCodeButton" class="flex-1 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-wait">
-                         ✨ Tạo Code
-                    </button>
-                    <button id="debugCodeButton" class="flex-1 px-4 py-2 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-wait">
-                         ✨ Phân tích Code
-                    </button>
-                 </div>
-                 <p id="aiStatus" class="text-sm text-gray-600 text-center h-4"></p>
-            </div>
+                <pre><code id="code-content">/*
+ * =================================================================================
+ * TÊN DỰ ÁN: XE DÒ LINE SIÊU ÂM (V36 - ĐỌN GIẢN COMMENT)
+ * /* --- TARGET: MỤC TIÊU CỦA DỰ ÁN --- */
+ * MÔ TẢ:
+ * Dựa trên V35.
+ *
+ * /* --- TARGET: LOGIC NỔI BẬT --- */
+ * --- LOGIC NỔI BẬT (TỪ V35) ---
+ * 1. MỤC TIÊU:
+ * a. Thêm chế độ "Grace Period" (Ân xá): 10 giây đầu tiên chỉ dò line
+ * bằng 2 cảm biến giữa (S2, S3), bỏ qua mọi trường hợp rẽ.
+ * b. Thêm trường hợp đặc biệt `1001` (S1 và S4 cùng thấy line) thì
+ * ưu tiên rẽ TRÁI.
+ *
+ * 2. LOGIC "GRACE PERIOD":
+ * - 10 giây đầu (`INITIAL_GRACE_PERIOD`).
+ * - Tự động gán `s1 = false` và `s4 = false`. (Vô hiệu hóa các CASE rẽ).
+ * - `CASE 6 (PID)` CHỈ tính toán `pos_pid` dựa trên S2 và S3.
+ *
+ * 3. CASE 1.5 (1001):
+ * - Sau 10 giây, nếu gặp `1001`, robot sẽ thực hiện cú xoay TRÁI mạnh.
+ *
+ * 4. LOGIC KHÁC (TỪ V34):
+ * - `performTurn()` thông minh (kiểm tra `xx10` và `01xx`).
+ * - Quét Servo siêu âm tránh vật cản.
+ *
+ * --- KẾT NỐI PHẦN CỨNG ---
+ * (Giữ nguyên)
+ * =================================================================================
+ */
 
-        </div>
-    </div>
-    
-    <!-- AI Modal -->
-    <div id="aiModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none">
-        <div class="bg-white rounded-lg shadow-2xl w-full max-w-2xl">
-            <div class="flex justify-between items-center p-4 border-b">
-                <h2 class="text-xl font-bold text-gray-800">✨ Phân tích từ Gemini AI</h2>
-                <button id="closeAiModalButton" class="text-gray-500 hover:text-gray-800 text-3xl">&times;</button>
-            </div>
-            <div id="aiModalContent" class="p-6 overflow-y-auto">
-                <article class="prose prose-sm max-w-none"></article>
-            </div>
-        </div>
-    </div>
+/* --- TARGET: Thư viện và Cấu hình --- */
+// --- THƯ VIỆN ---
+#include &lt;AFMotor.h&gt;
+#include &lt;Servo.h&gt;
 
+// --- CẤU HÌNH VÀ PIN ---
+const bool DEBUG_PRINT = 1;
 
-    <script>
-        // --- Lấy các phần tử DOM ---
-        const canvas = document.getElementById('simulationCanvas');
-        const ctx = canvas.getContext('2d');
-        const logContent = document.getElementById('logContent');
-        
-        const drawButton = document.getElementById('drawButton');
-        const placeCarButton = document.getElementById('placeCarButton');
-        const simulateButton = document.getElementById('simulateButton');
-        const stopButton = document.getElementById('stopButton');
-        const resetCarButton = document.getElementById('resetCarButton');
-        const clearMapButton = document.getElementById('clearMapButton');
-        const loadDefaultMapButton = document.getElementById('loadDefaultMapButton');
-        const saveMapButton = document.getElementById('saveMapButton');
-        const loadMapButton = document.getElementById('loadMapButton');
-        
-        const drawingTools = document.getElementById('drawingTools');
-        const toolFreehand = document.getElementById('toolFreehand');
-        const toolLine = document.getElementById('toolLine');
-        const toolArc = document.getElementById('toolArc');
-        const toolTriangle = document.getElementById('toolTriangle');
-        const toolRect = document.getElementById('toolRect');
-        const toolEraser = document.getElementById('toolEraser');
-        const undoButton = document.getElementById('undoButton');
-        const redoButton = document.getElementById('redoButton');
-        const toggleGridButton = document.getElementById('toggleGridButton');
-        const lineWidthSlider = document.getElementById('lineWidthSlider');
-        
-        const simulationOptions = document.getElementById('simulationOptions');
-        const carSpeedSlider = document.getElementById('carSpeedSlider');
-        const carSpeedValue = document.getElementById('carSpeedValue');
-        const pidKPInput = document.getElementById('pid_KP');
-        const pidKIInput = document.getElementById('pid_KI');
-        const pidKDInput = document.getElementById('pid_KD');
-        
-        const codeEditor = document.getElementById('codeEditor');
-        const loadCodeButton = document.getElementById('loadCodeButton');
+// --- CẤU HÌNH MOTOR ---
+#define MIN_PWM 80
+const float LEFT_OFFSET = 1.0;
+const float RIGHT_OFFSET = 0.9;
 
-        const aiPromptInput = document.getElementById('aiPromptInput');
-        const generateCodeButton = document.getElementById('generateCodeButton');
-        const debugCodeButton = document.getElementById('debugCodeButton');
-        const aiStatus = document.getElementById('aiStatus');
-        const aiModal = document.getElementById('aiModal');
-        const aiModalContent = document.getElementById('aiModalContent').querySelector('article');
-        const closeAiModalButton = document.getElementById('closeAiModalButton');
+// --- CẤU HÌNH KHÁC ---
+#define LOST_LINE_TIMEOUT 500 // Giữ 500ms
+
+// Thời gian ân xá: 10 giây đầu chỉ chạy PID 2 cảm biến
+#define INITIAL_GRACE_PERIOD 10000 // 10 giây (10000 ms)
+
+// Cấu hình quét Servo siêu âm
+#define SCAN_LEFT 160
+#define SCAN_CENTER 90
+#define SCAN_RIGHT 20
+#define SCAN_DELAY 300
+
+// Cấu hình tránh vật cản
+#define OBSTACLE_DISTANCE 15
+#define TURN_SPEED 180
+#define AVOID_SPEED 150
+#define SEARCH_SPEED 130
+#define TURN_DURATION 600
+#define STRAIGHT_DURATION 1000
+#define SEARCH_TIMEOUT 3000
 
 
-        // --- CẤU HÌNH ---
-        let LINE_COLOR = '#000000';
-        const BACKGROUND_COLOR = '#FFFFFF';
-        let LINE_WIDTH = 18;
-        let ERASER_WIDTH = 20;
-        const SENSOR_COLOR_ON = 'red';
-        const SENSOR_COLOR_OFF = 'green';
-        const GRID_SIZE = 20;
-        
-        // --- BIẾN TRẠNG THÁI ---
-        let currentMode = 'draw';
-        let currentDrawTool = 'freehand';
-        let isRunning = false;
-        let isDrawing = false; 
-        let isGridVisible = false;
-        
-        let animationFrameId = null;
-        let mapImageData = null; 
-        
-        let lineStartPoint = null;
-        let previewMapData = null; 
-        
-        let drawState = { clickCount: 0, p1: null, p2: null };
-        
-        let history = [];
-        let historyIndex = -1;
-        
-        let initialCarX = 100;
-        let initialCarY = 750; 
-        let initialCarAngle = -Math.PI / 2; 
+// ================================================================================
+// Biến lưu giá trị hiệu chỉnh
+int SENSOR_MIN_CALI = 1023;
+int SENSOR_MAX_CALI = 0;
+int threshold_for_turn = 500;
+// ================================================================================
 
-        // --- Đối tượng Xe (Cập nhật V7) ---
-        const car = {
-            x: initialCarX,
-            y: initialCarY,
-            width: 20,
-            height: 30,
-            angle: initialCarAngle,
-            speed: 1.5,
-            turnSpeed: 0.05,
-            sensors: [
-                { id: 'S1', x: -15, y: -18, value: 0 }, // Trái
-                { id: 'S2', x: -5, y: -18, value: 0 },  // Gần trái
-                { id: 'S3', x: 5, y: -18, value: 0 },   // Gần phải
-                { id: 'S4', x: 15, y: -18, value: 0 }    // Phải
-            ],
-            wheels: [
-                { x: -15, y: -10, width: 6, height: 12 },
-                { x: 15, y: -10, width: 6, height: 12 },
-                { x: -15, y: 10, width: 6, height: 12 },
-                { x: 15, y: 10, width: 6, height: 12 }
-            ],
-            draw: function() {
-                ctx.save();
-                ctx.translate(this.x, this.y);
-                ctx.rotate(this.angle);
-                ctx.fillStyle = 'blue';
-                ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
-                ctx.fillStyle = 'cyan';
-                ctx.beginPath();
-                ctx.moveTo(0, -this.height / 2 - 5);
-                ctx.lineTo(-5, -this.height / 2);
-                ctx.lineTo(5, -this.height / 2);
-                ctx.closePath();
-                ctx.fill();
-                this.wheels.forEach(wheel => {
-                    ctx.fillStyle = '#333';
-                    ctx.fillRect(wheel.x - wheel.width / 2, wheel.y - wheel.height / 2, wheel.width, wheel.height);
-                });
-                this.sensors.forEach(sensor => {
-                    ctx.fillStyle = sensor.value ? SENSOR_COLOR_ON : SENSOR_COLOR_OFF;
-                    ctx.beginPath();
-                    ctx.arc(sensor.x, sensor.y, 3, 0, 2 * Math.PI);
-                    ctx.fill();
-                });
-                ctx.restore();
-            },
-            update: function(leftSpeed, rightSpeed) {
-                const linearSpeed = (leftSpeed + rightSpeed) / 2 * this.speed; 
-                const angularSpeed = (rightSpeed - leftSpeed) / this.width; 
-                
-                this.angle += angularSpeed * this.turnSpeed;
-                this.x += Math.cos(this.angle) * linearSpeed;
-                this.y += Math.sin(this.angle) * linearSpeed;
-            },
-            readSensors: function() {
-                const see_line_threshold = 0.7;
-                
-                this.sensors.forEach(sensor => {
-                    const cosA = Math.cos(this.angle);
-                    const sinA = Math.sin(this.angle);
-                    const sensorX = this.x + sensor.x * cosA - sensor.y * sinA;
-                    const sensorY = this.y + sensor.x * sinA + sensor.y * cosA;
-                    
-                    try {
-                        const pixelData = ctx.getImageData(Math.round(sensorX), Math.round(sensorY), 1, 1).data;
-                        const brightness = (pixelData[0] + pixelData[1] + pixelData[2]) / 3;
-                        const analogValue = 1.0 - (brightness / 255.0); 
-                        
-                        sensor.value = (analogValue > see_line_threshold) ? 1 : 0;
-                        sensor.analog = analogValue; 
-                        
-                    } catch (e) {
-                        sensor.value = 0;
-                        sensor.analog = 0.0;
-                    }
-                });
-            },
-            reset: function() {
-                this.x = initialCarX;
-                this.y = initialCarY;
-                this.angle = initialCarAngle;
-            }
-        };
+// Cảm biến
+#define ULTRA_TRIG_PIN A0
+#define ULTRA_ECHO_PIN A1
 
-        // --- BỘ NÃO XE (LOGIC V29 - ĐÃ DỊCH SANG JS) ---
-        const CarBrain = {
-            // (CẬP NHẬT V8) Hằng số PID mặc định đã giảm 100 lần
-            KP: 0.5,
-            KI: 0.001,
-            KD: 0.1,
-            
-            // Hằng số tốc độ (chuẩn hóa 0.0-2.0)
-            PID_SPEED_STABLE: 1.0,   
-            PID_SPEED_UNSTABLE: 0.8, 
-            PID_KP_STABLE: 0.2, // (KP 20.0 -> 0.2)
-            PID_KP_UNSTABLE: 0.5, // (KP 50.0 -> 0.5)
-            TURN_SPEED_LINE: 1.5,    
-            
-            LOST_LINE_TIMEOUT: 500,
+// Servo (Giờ dùng cho siêu âm)
+#define SERVO_PIN 9
+Servo myServo;
 
-            lastError: 0,
-            integral: 0,
-            pre_pos: 1500.0, 
-            stabilityCounter: 0,
+// Cảm biến dò line
+uint8_t sens[] = {A2, A3, A4, A5}; // S1, S2, S3, S4
 
-            mapState: 0,
-            choSuKienMoi: true,
-            
-            isTurning: false,
-            turnStartTime: 0,
-            turningRight: false,
-            currentTurnSpeed: 0,
-            currentMaxTurnTime: 0,
-            
-            lostLineStartTime: 0,
+// PID
+const float Ki = 0.01;
+const float Kd = 10.0;
+float error = 0, P = 0, I = 0, D = 0, PID_value = 0;
+float previous_error = 0, previous_I = 0;
+float pre_pos = 1500.0;
 
-            reset: function() {
-                this.lastError = 0;
-                this.integral = 0;
-                this.pre_pos = 1500.0;
-                this.stabilityCounter = 0;
-                this.mapState = 0;
-                this.choSuKienMoi = true;
-                this.isTurning = false;
-                this.turnStartTime = 0;
-                this.lostLineStartTime = 0;
-                
-                // (CẬP NHẬT V8) Đọc giá trị PID đã điều chỉnh từ UI
-                this.KP = parseFloat(pidKPInput.value) || 0.5;
-                this.KI = parseFloat(pidKIInput.value) || 0.001;
-                this.KD = parseFloat(pidKDInput.value) || 0.1;
-                // Tự động tính Kp stable
-                this.PID_KP_STABLE = this.KP * 0.4; // 40% của Kp unstable
-                this.PID_KP_UNSTABLE = this.KP;
-            },
-            
-            update: function(sensors) {
-                try {
-                    return this.customUpdate(sensors, this);
-                } catch (e) {
-                    console.error("Lỗi trong code 'Bộ Não Xe' của bạn:", e);
-                    stopSimulationWithError(`Lỗi code: ${e.message}`);
-                    return {
-                        motorSpeeds: { left: 0, right: 0 },
-                        logData: { status: "LỖI CODE! Đã dừng." }
-                    };
-                }
-            },
-            
-            // Hàm 'customUpdate' (LOGIC V29 - Đã "biến tấu" vật lý)
-            customUpdate: function(sensors, brain) {
-                
-                const currentTime = Date.now();
-                let logData = { status: "..." };
+// Biến trạng thái
+int robotState = 0;
+int stabilityCounter = 0;
+unsigned long lostLineStartTime = 0;
+bool isTurning = false;
+unsigned long turnStartTime = 0;
+bool turningRight = false;
+int currentTurnSpeed = 0;
+unsigned long currentMaxTurnTime = 0;
 
-                // 1. ƯU TIÊN KIỂM TRA XOAY (performTurn)
-                if (brain.isTurning) {
-                    logData.status = brain.turningRight ? "Đang Rẽ Phải..." : "Đang Rẽ Trái...";
-                    
-                    const s2 = sensors.find(s => s.id === 'S2').value;
-                    const s3 = sensors.find(s => s.id === 'S3').value;
-                    let lineFound = (s2 === 1 || s3 === 1);
-                    
-                    if (currentTime - brain.turnStartTime > brain.currentMaxTurnTime) {
-                        lineFound = true;
-                        logData.status = "Rẽ Bị Timeout!";
-                    }
+// Thời điểm bắt đầu chương trình (cho Grace Period)
+unsigned long programStartTime = 0;
 
-                    if (lineFound) {
-                        brain.isTurning = false;
-                        brain.lastError = 0; brain.integral = 0; brain.pre_pos = 1500.0;
-                        return { motorSpeeds: { left: 0, right: 0 }, logData: { status: "Hoàn thành rẽ!", mapState: brain.mapState } };
-                    }
-                    
-                    const turnSpeed = brain.currentTurnSpeed;
-                    if (brain.turningRight) {
-                        return { motorSpeeds: { left: turnSpeed, right: -turnSpeed }, logData: { status: "Đang Rẽ Phải...", mapState: brain.mapState } };
-                    } else {
-                        return { motorSpeeds: { left: -turnSpeed, right: turnSpeed }, logData: { status: "Đang Rẽ Trái...", mapState: brain.mapState } };
-                    }
-                }
-                
-                // 2. ĐỌC CẢM BIẾN
-                const s1 = sensors.find(s => s.id === 'S1').value;
-                const s2 = sensors.find(s => s.id === 'S2').value;
-                const s3 = sensors.find(s => s.id === 'S3').value;
-                const s4 = sensors.find(s => s.id === 'S4').value;
+// Trạng thái tránh vật cản
+bool isAvoidingObstacle = false;
+int avoidState = 0;
+unsigned long avoidStartTime = 0;
+bool avoidTurnRight = false;
 
-                // 3. PHÂN LOẠI SỰ KIỆN
-                const laNgaTu = (s1 && s2 && s3 && s4);
-                const laNgaBaTrai = (s1 && s2 && s3 && !s4);    // 1110
-                const laNgaBaPhai = (!s1 && s2 && s3 && s4);    // 0111
-                const laTamGiac = (s1 && !s2 && !s3 && s4);     // 1001
-                const laCuoiDuong = (!s1 && !s2 && !s3 && !s4);  // 0000
-                const laPhucHoiTrai = (!s1 && s2 && !s3 && !s4); // 0100
-                const laPhucHoiPhai = (!s1 && !s2 && s3 && !s4); // 0010
-                
-                const laSuKienNgaRe = laNgaTu || laNgaBaTrai || laNgaBaPhai || laTamGiac;
+// --- KHỞI TẠO ĐỐI TƯỢNG ĐỘNG CƠ ---
+AF_DCMotor motorLeftFront(1);
+AF_DCMotor motorLeftRear(2);
+AF_DCMotor motorRightFront(3);
+AF_DCMotor motorRightRear(4);
 
-                if (!laSuKienNgaRe && !(laCuoiDuong && brain.mapState != 6)) {
-                    brain.choSuKienMoi = true;
-                }
-                
-                logData.mapState = brain.mapState;
+/*
+ * =================================================================================
+ * /* --- TARGET: CÁC HÀM ĐIỀU KHIỂN ĐỘNG CƠ --- */
+ * CÁC HÀM ĐIỀU KHIỂN ĐỘNG CƠ
+ * =================================================================================
+ */
 
-                // 4. MÁY TRẠNG THÁI
-                if (!brain.choSuKienMoi) {
-                    logData.status = "Đang chờ qua vạch...";
-                    return { motorSpeeds: { left: brain.PID_SPEED_STABLE, right: brain.PID_SPEED_STABLE }, logData };
-                }
-                
-                switch (brain.mapState) {
-                    case 0: // Tìm 0111 (lần 1)
-                        if (laNgaBaPhai) {
-                            logData.status = "MAP 0 -> 1: Thấy 0111 (Lần 1). Bỏ qua.";
-                            brain.choSuKienMoi = false;
-                            brain.mapState = 1;
-                            brain.stabilityCounter = 0; brain.pre_pos = 1500.0; brain.lastError = 0.0; brain.integral = 0.0;
-                            return { motorSpeeds: { left: brain.PID_SPEED_STABLE, right: brain.PID_SPEED_STABLE }, logData };
-                        }
-                        break;
+// Hàm điều khiển 2 động cơ TRÁI (Áp dụng offset và min_pwm)
+void setLeftMotors(int speed) {
+  speed = constrain(speed * LEFT_OFFSET, -255, 255);
 
-                    case 1: // Tìm 0111 (lần 2)
-                        if (laNgaBaPhai) {
-                            logData.status = "MAP 1 -> 2: Thấy 0111 (Lần 2). Bỏ qua.";
-                            brain.choSuKienMoi = false;
-                            brain.mapState = 2;
-                            brain.stabilityCounter = 0; brain.pre_pos = 1500.0; brain.lastError = 0.0; brain.integral = 0.0;
-                            return { motorSpeeds: { left: brain.PID_SPEED_STABLE, right: brain.PID_SPEED_STABLE }, logData };
-                        }
-                        break;
+  if (speed > 0 && speed < MIN_PWM) {
+    speed = 0;
+  } else if (speed < 0 && speed > -MIN_PWM) {
+    speed = 0;
+  }
 
-                    case 2: // Tìm 0111 (lần 3) -> RẼ PHẢI
-                        if (laNgaBaPhai) {
-                            logData.status = "MAP 2 -> 3: Thấy 0111 (Lần 3). Rẽ Phải!";
-                            brain.choSuKienMoi = false;
-                            brain.mapState = 3;
-                            brain.stabilityCounter = 0;
-                            brain.isTurning = true; brain.turnStartTime = currentTime; brain.turningRight = true; 
-                            brain.currentTurnSpeed = brain.TURN_SPEED_LINE; brain.currentMaxTurnTime = 1200; // Tăng thời gian
-                            return { motorSpeeds: { left: brain.currentTurnSpeed, right: -brain.currentTurnSpeed }, logData };
-                        }
-                        break;
-
-                    case 3: // Tìm Ngã tư (1110 / 1111) -> RẼ TRÁI
-                        if (laNgaBaTrai || laNgaTu) {
-                            logData.status = "MAP 3 -> 4: Thấy Ngã Tư. Rẽ Trái!";
-                            brain.choSuKienMoi = false;
-                            brain.mapState = 4;
-                            brain.stabilityCounter = 0;
-                            brain.isTurning = true; brain.turnStartTime = currentTime; brain.turningRight = false; 
-                            brain.currentTurnSpeed = brain.TURN_SPEED_LINE; brain.currentMaxTurnTime = 1000;
-                            return { motorSpeeds: { left: -brain.currentTurnSpeed, right: brain.currentTurnSpeed }, logData };
-                        }
-                        break;
-                        
-                    case 4: // Tìm 0111 (sau ngã tư) -> RẼ PHẢI
-                        if (laNgaBaPhai) {
-                            logData.status = "MAP 4 -> 5: Thấy 0111. Rẽ Phải.";
-                            brain.choSuKienMoi = false;
-                            brain.mapState = 5;
-                            brain.stabilityCounter = 0;
-                            brain.isTurning = true; brain.turnStartTime = currentTime; brain.turningRight = true; 
-                            brain.currentTurnSpeed = brain.TURN_SPEED_LINE; brain.currentMaxTurnTime = 1000;
-                            return { motorSpeeds: { left: brain.currentTurnSpeed, right: -brain.currentTurnSpeed }, logData };
-                        }
-                        break;
-
-                    case 5: // Tìm "Tam Giác" (1001) -> RẼ TRÁI
-                        if (laTamGiac) {
-                            logData.status = "MAP 5 -> 6: Thấy Tam Giác (1001). Rẽ Trái.";
-                            brain.choSuKienMoi = false;
-                            brain.mapState = 6;
-                            brain.stabilityCounter = 0;
-                            brain.isTurning = true; brain.turnStartTime = currentTime; brain.turningRight = false; 
-                            brain.currentTurnSpeed = brain.TURN_SPEED_LINE; brain.currentMaxTurnTime = 1000;
-                            return { motorSpeeds: { left: -brain.currentTurnSpeed, right: brain.currentTurnSpeed }, logData };
-                        }
-                        break;
-
-                    case 6: // Tìm "Cuối Đường" (0000)
-                        if (laCuoiDuong) {
-                            if (brain.lostLineStartTime === 0) {
-                                brain.lostLineStartTime = currentTime; 
-                                logData.status = "MAP 6 -> 7: Thấy 0000. Kiểm tra...";
-                            }
-                            if (currentTime - brain.lostLineStartTime > brain.LOST_LINE_TIMEOUT) {
-                                logData.status = "HOÀN THÀNH! Dừng vĩnh viễn.";
-                                brain.mapState = 7; 
-                                stopSimulationWithError("Đã chạy xong lộ trình V29.");
-                                return { motorSpeeds: { left: 0, right: 0 }, logData };
-                            }
-                            return { motorSpeeds: { left: 0, right: 0 }, logData };
-                        } else {
-                            brain.lostLineStartTime = 0;
-                        }
-                        break;
-
-                    case 7: // Đã dừng
-                        logData.status = "Đã dừng.";
-                        stopSimulationWithError("Đã chạy xong lộ trình V29.");
-                        return { motorSpeeds: { left: 0, right: 0 }, logData };
-                }
-                
-                // 5. NẾU KHÔNG CÓ SỰ KIỆN (Logic PID và Phục hồi)
-                if (laPhucHoiTrai) { // 0100
-                    brain.lostLineStartTime = 0; logData.status = "Phục hồi trái (0100)"; brain.stabilityCounter = 0;
-                    brain.lastError = -0.8;
-                    return { motorSpeeds: { left: -0.8, right: 1.2 }, logData };
-                }
-                else if (laPhucHoiPhai) { // 0010
-                    brain.lostLineStartTime = 0; logData.status = "Phục hồi phải (0010)"; brain.stabilityCounter = 0;
-                    brain.lastError = 0.8;
-                    return { motorSpeeds: { left: 1.2, right: -0.8 }, logData };
-                }
-                else if (laCuoiDuong) { // 0000 (nhưng state != 6)
-                    brain.stabilityCounter = 0;
-                    if (brain.lostLineStartTime === 0) {
-                        brain.lostLineStartTime = currentTime; 
-                        logData.status = "Mất line tạm thời (0000)...";
-                    }
-                    if (currentTime - brain.lostLineStartTime > brain.LOST_LINE_TIMEOUT) {
-                        logData.status = "Mất line TIMEOUT! Dừng.";
-                        stopSimulationWithError("Mất line (0000) quá lâu.");
-                        return { motorSpeeds: { left: 0, right: 0 }, logData };
-                    } else {
-                        logData.status = "Đang tìm line...";
-                        const recoverySpeed = 1.0;
-                        if (brain.lastError < -0.5) return { motorSpeeds: { left: recoverySpeed, right: -recoverySpeed / 2 }, logData };
-                        else if (brain.lastError > 0.5) return { motorSpeeds: { left: -recoverySpeed / 2, right: recoverySpeed }, logData };
-                        else return { motorSpeeds: { left: recoverySpeed, right: recoverySpeed }, logData };
-                    }
-                }
-                else { // LOGIC PID BÌNH THƯỜNG
-                    brain.lostLineStartTime = 0;
-                    
-                    const s1_a = sensors.find(s => s.id === 'S1').analog;
-                    const s2_a = sensors.find(s => s.id === 'S2').analog;
-                    const s3_a = sensors.find(s => s.id === 'S3').analog;
-                    const s4_a = sensors.find(s => s.id === 'S4').analog;
-                    const sumError_all = s1_a + s2_a + s3_a + s4_a;
-                    
-                    let pos_pid = 0.0;
-                    if (sumError_all < 0.01) {
-                        pos_pid = brain.pre_pos; 
-                    } else {
-                        pos_pid = (s1_a * 0) + (s2_a * 1000) + (s3_a * 2000) + (s4_a * 3000);
-                        pos_pid /= sumError_all;
-                        brain.pre_pos = pos_pid;
-                    }
-                    
-                    if (pos_pid > 1100 && pos_pid < 1900) brain.stabilityCounter++; 
-                    else brain.stabilityCounter = 0;
-
-                    let current_initSpeed, current_Kp;
-                    if (brain.stabilityCounter > 20) {
-                        logData.status = "PID (Ổn định)";
-                        current_initSpeed = brain.PID_SPEED_STABLE;
-                        current_Kp = brain.PID_KP_STABLE;
-                    } else {
-                        logData.status = "PID (Tìm kiếm)";
-                        current_initSpeed = brain.PID_SPEED_UNSTABLE;
-                        current_Kp = brain.PID_KP_UNSTABLE;
-                    }
-                    
-                    const error = (pos_pid - 1500.0) / 500.0; // Error từ -3.0 đến 3.0
-                    const P = error;
-                    brain.integral = brain.integral + P; 
-                    brain.integral = Math.max(-100.0, Math.min(100.0, brain.integral)); // Giới hạn I
-                    const D = error - brain.lastError;
-                    
-                    // (CẬP NHẬT V8) Hằng số Kp, Ki, Kd đã được scale
-                    const PID_value = (current_Kp * P) + (brain.KI * brain.integral) + (brain.KD * D);
-                    brain.lastError = error;
-                    
-                    let leftSpeed = current_initSpeed + PID_value;
-                    let rightSpeed = current_initSpeed - PID_value;
-                    
-                    // Giới hạn tốc độ mô phỏng
-                    leftSpeed = Math.max(-1.5, Math.min(1.5, leftSpeed));
-                    rightSpeed = Math.max(-1.5, Math.min(1.5, rightSpeed));
-                    
-                    logData.error = error.toFixed(2);
-                    logData.PID = PID_value.toFixed(2);
-                    logData.leftSpeed = leftSpeed.toFixed(2);
-                    logData.rightSpeed = rightSpeed.toFixed(2);
-
-                    return { motorSpeeds: { left: leftSpeed, right: rightSpeed }, logData };
-                }
-            }
-        };
-
-        // --- LOGIC GEMINI API (V7) ---
-        const apiKey = "";
-        const genAIApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-
-        async function callGeminiAPI(systemPrompt, userPrompt) {
-            setAiLoading(true);
-            aiStatus.textContent = "Đang kết nối với Gemini AI...";
-            
-            const payload = {
-                contents: [{ parts: [{ text: userPrompt }] }],
-                systemInstruction: {
-                    parts: [{ text: systemPrompt }]
-                },
-            };
-
-            try {
-                const response = await fetch(genAIApiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!response.ok) {
-                    const errorBody = await response.json();
-                    throw new Error(`API Error: ${response.status} - ${errorBody.error?.message || response.statusText}`);
-                }
-
-                const result = await response.json();
-                const candidate = result.candidates?.[0];
-                
-                if (candidate && candidate.content?.parts?.[0]?.text) {
-                    aiStatus.textContent = "AI đã phản hồi!";
-                    setAiLoading(false);
-                    return candidate.content.parts[0].text;
-                } else {
-                    throw new Error("Không nhận được nội dung hợp lệ từ AI.");
-                }
-            } catch (e) {
-                console.error("Lỗi gọi Gemini API:", e);
-                aiStatus.textContent = `Lỗi: ${e.message}`;
-                setAiLoading(false);
-                return null;
-            }
-        }
-        
-        function setAiLoading(isLoading) {
-            generateCodeButton.disabled = isLoading;
-            debugCodeButton.disabled = isLoading;
-            if (isLoading) {
-                aiStatus.textContent = "AI đang xử lý...";
-            } else {
-                 setTimeout(() => { aiStatus.textContent = ""; }, 3000);
-            }
-        }
-
-        generateCodeButton.addEventListener('click', async () => {
-            const userPrompt = aiPromptInput.value;
-            if (!userPrompt) {
-                alert("Vui lòng nhập mô tả logic của bạn vào ô bên trên.");
-                return;
-            }
-            
-            const systemPrompt = `
-You are an expert JavaScript programmer specializing in line follower robot logic.
-Your task is to generate ONLY the JavaScript code for the body of a function: \`customUpdate(sensors, brain)\`.
-Do NOT include the function definition \`function customUpdate(sensors, brain) { ... }\` or any surrounding text, comments, or markdown ticks (\`\`\`).
-You must generate only the raw JavaScript code for the function's body.
-
-The 'sensors' array has this structure (4 sensors in a line):
-[
-  { id: 'S1', value: 0, analog: 0.0 }, // Far Left
-  { id: 'S2', value: 0, analog: 0.0 }, // Mid Left
-  { id: 'S3', value: 0, analog: 0.0 }, // Mid Right
-  { id: 'S4', value: 0, analog: 0.0 }  // Far Right
-]
-'value' is 1 (black line) or 0 (white background).
-'analog' is 0.0 (white) to 1.0 (black), use this for PID position calculation.
-
-The 'brain' object contains:
-- brain.lastError (number)
-- brain.integral (number)
-- brain.pre_pos (number)
-- brain.mapState (number)
-- brain.choSuKienMoi (boolean)
-- brain.isTurning (boolean)
-- brain.KP, brain.KI, brain.KD (PID constants - THESE ARE SMALL, e.g., 0.5)
-You MUST use these properties.
-
-Your code MUST return an object with this exact structure:
-{
-  motorSpeeds: { left: number, right: number },
-  logData: { status: string, ...any_other_logs }
+  if (speed == 0) {
+      motorLeftFront.run(RELEASE);
+      motorLeftRear.run(RELEASE);
+  } else if (speed > 0) {
+    motorLeftFront.run(FORWARD);
+    motorLeftRear.run(FORWARD);
+    motorLeftFront.setSpeed(speed);
+    motorLeftRear.setSpeed(speed);
+  } else {
+    motorLeftFront.run(BACKWARD);
+    motorLeftRear.run(BACKWARD);
+    motorLeftFront.setSpeed(abs(speed));
+    motorLeftRear.setSpeed(abs(speed));
+  }
 }
-Respond in Vietnamese for comments if any.
-`;
-            
-            let generatedCode = await callGeminiAPI(systemPrompt, userPrompt);
-            
-            if (generatedCode) {
-                generatedCode = generatedCode.replace(/^```javascript\n?|```$/g, "").trim();
-                codeEditor.value = generatedCode;
-                aiStatus.textContent = "Đã tạo code! Đang nạp code...";
-                loadCodeButton.click();
-            }
-        });
 
-        debugCodeButton.addEventListener('click', async () => {
-            const userCode = codeEditor.value;
-            if (!userCode) {
-                alert("Không có code nào trong trình soạn thảo để phân tích.");
-                return;
-            }
-            
-            const systemPrompt = `
-Bạn là một chuyên gia đánh giá code (code reviewer) chuyên về logic robot dò line (PID, v.v.).
-Nhiệm vụ của bạn là phân tích code JavaScript của người dùng.
-Code này dùng 4 cảm biến thẳng hàng: S1 (ngoài trái), S2 (trong trái), S3 (trong phải), S4 (ngoài phải).
-Code cũng sử dụng một máy trạng thái (brain.mapState) để xử lý lộ trình.
-Hãy phản hồi bằng Tiếng Việt.
-1. Giải thích logic của code, đặc biệt là máy trạng thái (mapState).
-2. Xác định các lỗi tiềm ẩn hoặc các trường hợp biên.
-3. Gợi ý các cải tiến.
-Hãy định dạng câu trả lời của bạn rõ ràng bằng Markdown (dùng #, *, \`code\`).
-`;
-            const userPrompt = `
-Hãy phân tích code xe dò line sau đây, giải thích logic, tìm lỗi và gợi ý cải tiến:
+// Hàm điều khiển 2 động cơ PHẢI (Áp dụng offset và min_pwm)
+void setRightMotors(int speed) {
+    speed = constrain(speed * RIGHT_OFFSET, -255, 255);
 
-\`\`\`javascript
-${userCode}
-\`\`\`
-`;
-            
-            const analysis = await callGeminiAPI(systemPrompt, userPrompt);
-            
-            if (analysis) {
-                let htmlAnalysis = analysis
-                    .replace(/```javascript\n/g, '<pre><code>')
-                    .replace(/```\n/g, '</code></pre>')
-                    .replace(/```/g, '</code></pre>')
-                    .replace(/`([^`]+)`/g, '<code>$1</code>')
-                    .replace(/^# (.*$)/gmi, '<h1>$1</h1>')
-                    .replace(/^## (.*$)/gmi, '<h2>$1</h2>')
-                    .replace(/\n\*(.*)/g, '<ul>\n  <li>$1</li>\n</ul>')
-                    .replace(/<\/ul>\n<ul>/g, '')
-                    .replace(/\n\n/g, '<br><br>');
-                
-                aiModalContent.innerHTML = htmlAnalysis;
-                showAiModal();
-            }
-        });
-        
-        function showAiModal() {
-            aiModal.classList.remove('opacity-0', 'pointer-events-none');
-        }
-        function hideAiModal() {
-            aiModal.classList.add('opacity-0', 'pointer-events-none');
-        }
-        closeAiModalButton.addEventListener('click', hideAiModal);
-        aiModal.addEventListener('click', (e) => {
-            if (e.target === aiModal) {
-                hideAiModal();
-            }
-        });
+    if (speed > 0 && speed < MIN_PWM) {
+     speed = 0;
+    } else if (speed < 0 && speed > -MIN_PWM) {
+     speed = 0;
+    }
+
+    if (speed == 0) {
+      motorRightFront.run(RELEASE);
+      motorRightRear.run(RELEASE);
+    } else if (speed > 0) {
+     motorRightFront.run(FORWARD);
+     motorRightRear.run(FORWARD);
+     motorRightFront.setSpeed(speed);
+     motorRightRear.setSpeed(speed);
+    } else {
+     motorRightFront.run(BACKWARD);
+     motorRightRear.run(BACKWARD);
+     motorRightFront.setSpeed(abs(speed));
+     motorRightRear.setSpeed(abs(speed));
+    }
+}
+
+// Hàm dừng tất cả động cơ (KHÔNG điều khiển LED)
+void stopMotors() {
+  motorLeftFront.run(RELEASE);
+  motorLeftRear.run(RELEASE);
+  motorRightFront.run(RELEASE);
+  motorRightRear.run(RELEASE);
+}
+
+  // Hàm dừng động cơ và xử lý LED
+  void stopMotorsAndLed() {
+     stopMotors();
+     digitalWrite(LED_BUILTIN, LOW);
+  }
 
 
-        // --- CODE EDITOR LOGIC (CẬP NHẬT V8) ---
-        codeEditor.value = CarBrain.customUpdate.toString()
-            .replace(/^function\s*customUpdate\s*\([^)]*\)\s*\{/, '')
-            .replace(/\}$/, '')
-            .trim();
-        
-        loadCodeButton.addEventListener('click', () => {
-            const userCode = codeEditor.value;
-            try {
-                const newUpdateFunction = new Function('sensors', 'brain', userCode);
-                CarBrain.customUpdate = newUpdateFunction;
-                CarBrain.reset(); 
-                
-                loadCodeButton.textContent = "Đã nạp code thành công!";
-                loadCodeButton.classList.remove('bg-green-600', 'hover:bg-green-700');
-                loadCodeButton.classList.add('bg-blue-500');
-                setTimeout(() => {
-                    loadCodeButton.textContent = "Nạp Code (Cập nhật Bộ Não)";
-                    loadCodeButton.classList.remove('bg-blue-500');
-                    loadCodeButton.classList.add('bg-green-600', 'hover:bg-green-700');
-                }, 2000);
-                
-            } catch (e) {
-                console.error("Lỗi cú pháp trong code của bạn:", e);
-                alert(`Lỗi cú pháp trong code của bạn:\n\n${e.message}\n\nHãy kiểm tra lại và nhấn 'Nạp Code'.`);
-            }
-        });
+/*
+ * =================================================================================
+ * /* --- TARGET: CÁC HÀM CẢM BIẾN VÀ LOGIC --- */
+ * CÁC HÀM CẢM BIẾN VÀ LOGIC
+ * =================================================================================
+ */
 
-        
-        // --- CÁC HÀM CẬP NHẬT GIAO DIỆN (CẬP NHẬT V8) ---
-        function updateLogPanel(carState, sensors, carBrainLog) {
-            logContent.innerHTML = `
---- TRẠNG THÁI XE ---
-X: ${carState.x.toFixed(2)}
-Y: ${carState.y.toFixed(2)}
-Góc: ${(carState.angle * 180 / Math.PI).toFixed(2)}°
+// 1. Tự động hiệu chỉnh
+void manual_calibration() {
+  digitalWrite(LED_BUILTIN, HIGH);
+  Serial.println(F("Bat dau hieu chinh line. Lia robot qua vach DEN va TRANG trong 5 giay..."));
+  unsigned long startTime = millis();
+  SENSOR_MIN_CALI = 1023; SENSOR_MAX_CALI = 0;
+  while (millis() - startTime < 5000) {
+    for (int j = 0; j < 4; j++) {
+      int val = analogRead(sens[j]);
+      if (val > SENSOR_MAX_CALI) SENSOR_MAX_CALI = val;
+      if (val < SENSOR_MIN_CALI) SENSOR_MIN_CALI = val;
+    }
+    delay(20);
+  }
+  digitalWrite(LED_BUILTIN, LOW);
+  threshold_for_turn = (SENSOR_MAX_CALI + SENSOR_MIN_CALI) / 2;
+  Serial.println(F("--- Hieu chinh xong! ---"));
+  Serial.print(F("SENSOR_MIN (Trang) tim thay: ")); Serial.println(SENSOR_MIN_CALI);
+  Serial.print(F("SENSOR_MAX (Den) tim thay: ")); Serial.println(SENSOR_MAX_CALI);
+  Serial.print(F("Nguong re (threshold) tinh duoc: ")); Serial.println(threshold_for_turn);
+}
 
---- CẢM BIẾN (S1, S2, S3, S4) ---
-[ ${sensors.find(s => s.id === 'S1').value},  ${sensors.find(s => s.id === 'S2').value},  ${sensors.find(s => s.id === 'S3').value},  ${sensors.find(s => s.id === 'S4').value}]
+// Hàm thực hiện và kiểm tra hoàn thành cú xoay MẠNH (Thông minh)
+void performTurn() {
+  // 1. Tiếp tục xoay
+  if (turningRight) { setLeftMotors(currentTurnSpeed); setRightMotors(-currentTurnSpeed); }
+  else { setLeftMotors(-currentTurnSpeed); setRightMotors(currentTurnSpeed); }
 
---- BỘ NÃO (LOGIC V29) ---
-Map State: ${carBrainLog.mapState ?? '...'}
-Trạng thái: ${carBrainLog.status || "..."}
-Lỗi (Error): ${carBrainLog.error || 0}
-PID: ${carBrainLog.PID || "0.00"}
+  // 2. Đọc 4 cảm biến để tìm line MỘT CÁCH CHÍNH XÁC
+  bool s1 = (analogRead(sens[0]) > threshold_for_turn);
+  bool s2 = (analogRead(sens[1]) > threshold_for_turn);
+  bool s3 = (analogRead(sens[2]) > threshold_for_turn);
+  bool s4 = (analogRead(sens[3]) > threshold_for_turn);
 
---- ĐỘNG CƠ ---
-Trái: ${carBrainLog.leftSpeed || "0.00"}
-Phải: ${carBrainLog.rightSpeed || "0.00"}
-            `;
-        }
+  bool lineFound = false;
+  
+  if (turningRight) {
+      // Đang rẽ PHẢI, mục tiêu là tìm xx10
+      // Dừng khi S3=1 VÀ S4=0 (để tránh 0011 ở ngã ba)
+      if (s3 && !s4) {
+          lineFound = true;
+          if (DEBUG_PRINT) Serial.println(F(" -> Re PHAI tim thay line (S3=1, S4=0)."));
+      }
+  } else {
+      // Đang rẽ TRÁI, mục tiêu là tìm 01xx
+      // Dừng khi S2=1 VÀ S1=0 (để tránh 1100 ở ngã ba)
+      if (s2 && !s1) {
+          lineFound = true;
+          if (DEBUG_PRINT) Serial.println(F(" -> Re TRAI tim thay line (S2=1, S1=0)."));
+      }
+  }
 
-        function stopSimulationWithError(message) {
-            isRunning = false;
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId);
-                animationFrameId = null;
-            }
-            setMode('draw');
-            logContent.innerHTML = `
---- TRẠNG THÁI XE ---
-ĐÃ DỪNG!
-Lý do: ${message}
-Đã quay về chế độ Vẽ.
-            `;
-        }
-        
-        // --- VÒNG LẶP MÔ PHỎNG (GAME LOOP) ---
-        function simulationLoop() {
-            if (!isRunning || currentMode !== 'simulate' || !mapImageData) return;
-            
-            ctx.putImageData(mapImageData, 0, 0);
-            
-            car.readSensors();
-            
-            // (CẬP NHẬT V8) Đọc PID từ UI mỗi frame
-            CarBrain.KP = parseFloat(pidKPInput.value) || 0.5;
-            CarBrain.KI = parseFloat(pidKIInput.value) || 0.001;
-            CarBrain.KD = parseFloat(pidKDInput.value) || 0.1;
-            CarBrain.PID_KP_STABLE = CarBrain.KP * 0.4;
-            CarBrain.PID_KP_UNSTABLE = CarBrain.KP;
-            
-            const decision = CarBrain.update(car.sensors); 
-            if (!decision) return;
-            
-            const motorSpeeds = decision.motorSpeeds;
-            car.update(motorSpeeds.left, motorSpeeds.right);
+  // 3. Kiểm tra timeout
+  if (millis() - turnStartTime > currentMaxTurnTime) {
+      if (DEBUG_PRINT) Serial.println(F(" -> Timeout! Dung xoay.")); lineFound = true;
+  }
 
-            if (car.x < 0 || car.x > canvas.width || car.y < 0 || car.y > canvas.height) {
-                stopSimulationWithError("Xe đã đi ra khỏi đường biên.");
-                return;
-            }
-            
-            car.draw();
-            updateLogPanel(car, car.sensors, decision.logData);
-            
-            animationFrameId = requestAnimationFrame(simulationLoop);
-        }
+  // 4. Hoàn thành xoay
+  if (lineFound) {
+       stopMotorsAndLed(); // Dừng 1 chút
+       delay(50);
+       previous_error = 0; previous_I = 0; pre_pos = 1500.0;
+       isTurning = false; // Tắt trạng thái xoay
+  }
+}
 
-        // --- CÁC HÀM VẼ CƠ BẢN (Grid, Clear, RedrawAll) ---
-        function clearCanvas() {
-            ctx.fillStyle = BACKGROUND_COLOR;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-        }
-        
-        function drawGrid() {
-            if (!isGridVisible) return;
-            ctx.save();
-            ctx.strokeStyle = "#e5e7eb";
-            ctx.lineWidth = 1;
-            
-            for (let x = GRID_SIZE; x < canvas.width; x += GRID_SIZE) {
-                ctx.beginPath();
-                ctx.moveTo(x, 0);
-                ctx.lineTo(x, canvas.height);
-                ctx.stroke();
-            }
-            for (let y = GRID_SIZE; y < canvas.height; y += GRID_SIZE) {
-                ctx.beginPath();
-                ctx.moveTo(0, y);
-                ctx.lineTo(canvas.width, y);
-                ctx.stroke();
-            }
-            ctx.restore();
-        }
-        
-        function redrawAll(drawCar = true) {
-            if (historyIndex > -1) {
-                ctx.putImageData(history[historyIndex], 0, 0);
+// 2. Logic dò line chính
+void linetracingMode() {
+
+  // --- ƯU TIÊN 1: Đang xoay
+  if (isTurning) { performTurn(); return; }
+
+  // --- C. ĐỌC CẢM BIẾN VÀ XỬ LÝ BÌNH THƯỜNG ---
+  float eachError[4]; float sumError_all = 0; float see_line_threshold = 0.7;
+  if (DEBUG_PRINT) Serial.print(F("Line (Raw): "));
+  for (int i = 0; i < 4; i++) { int val = analogRead(sens[i]); if (DEBUG_PRINT) { Serial.print(val); Serial.print(" "); }
+    eachError[i] = constrain((1.0 * (val - SENSOR_MIN_CALI)) / (1.0 * (SENSOR_MAX_CALI - SENSOR_MIN_CALI)), 0.0, 1.0); sumError_all += eachError[i]; }
+  
+  /* --- TARGET: Logic "Grace Period" --- */
+  // Logic "Grace Period" (Ân xá 10 giây đầu)
+  unsigned long currentTime = millis();
+  bool isGracePeriod = (currentTime - programStartTime < INITIAL_GRACE_PERIOD);
+
+  // Đọc giá trị bool thô
+  bool s1_raw = (eachError[0] > see_line_threshold);
+  bool s2_raw = (eachError[1] > see_line_threshold);
+  bool s3_raw = (eachError[2] > see_line_threshold);
+  bool s4_raw = (eachError[3] > see_line_threshold);
+
+  bool s1, s2, s3, s4; // Biến s# cuối cùng để dùng cho các CASE
+
+  if (isGracePeriod) {
+    if (DEBUG_PRINT) Serial.print(F(" (Grace Period) "));
+    s1 = false; // Tắt S1
+    s2 = s2_raw;
+    s3 = s3_raw;
+    s4 = false; // Tắt S4
+  } else {
+    // Sau 10s, dùng tất cả cảm biến
+    s1 = s1_raw;
+    s2 = s2_raw;
+    s3 = s3_raw;
+    s4 = s4_raw;
+  }
+
+  // --- D. LIỆT KÊ CÁC TRƯỜNG HỢP ---
+
+  /* --- TARGET: CASE 1.5 --- */
+  // CASE 1.5: Ưu tiên rẽ trái khi thấy 1001 (Chỉ chạy sau 10s)
+  if (s1 && !s2 && !s3 && s4) {
+    lostLineStartTime = 0;
+    if (!isTurning) {
+        if (DEBUG_PRINT) Serial.println(F(" | CASE 1.5 (1001): Uu tien RE TRAI."));
+        stabilityCounter = 0;
+        isTurning = true;
+        turnStartTime = millis();
+        turningRight = false; // Rẽ TRÁI
+        currentTurnSpeed = 220;
+        currentMaxTurnTime = 1200;
+        performTurn();
+    }
+    return; // Rất quan trọng
+  }
+
+  /* --- TARGET: CASE 2 --- */
+  // CASE 2: NGÃ TƯ (1111) -> Rẽ Phải 90 độ (Tự động tắt trong 10s)
+  if (s1 && s2 && s3 && s4) {
+    lostLineStartTime = 0; if (DEBUG_PRINT) Serial.println(F(" | CASE 2: NGA TU (1111)! Bat dau RE PHAI 90 DO.")); stabilityCounter = 0;
+    isTurning = true; turnStartTime = millis(); turningRight = true; currentTurnSpeed = 220; currentMaxTurnTime = 1500; performTurn(); return;
+  }
+  /* --- TARGET: CASE 3A --- */
+  // CASE 3A: CUA GẮT TRÁI (1110) (Tự động tắt trong 10s)
+  else if (s1 && s2 && s3 && !s4) {
+    lostLineStartTime = 0;
+    if (!isTurning) {
+      if (DEBUG_PRINT) Serial.println(F(" | CASE 3A: CUA GAT TRAI (1110)! Bat dau XOAY TRAI MANH."));
+      stabilityCounter = 0;
+      isTurning = true;
+      turnStartTime = millis();
+      turningRight = false; 
+      currentTurnSpeed = 220; 
+      currentMaxTurnTime = 1200; 
+      performTurn(); 
+    } else if (DEBUG_PRINT) {
+      Serial.println(F(" | CASE 3A: Ignored (already turning)."));
+    }
+    return; 
+  }
+  // CASE 3B: CUA GẮT PHẢI (0111) (Tự động tắt trong 10s)
+  else if (!s1 && s2 && s3 && s4) {
+    lostLineStartTime = 0;
+    if (!isTurning) { 
+      if (DEBUG_PRINT) Serial.println(F(" | CASE 3B: CUA GAT PHAI (0111)! Bat dau XOAY PHAI MANH."));
+      stabilityCounter = 0;
+      isTurning = true;
+      turnStartTime = millis();
+      turningRight = true; 
+      currentTurnSpeed = 220; 
+      currentMaxTurnTime = 1200; 
+      performTurn(); 
+    } else if (DEBUG_PRINT) {
+      Serial.println(F(" | CASE 3B: Ignored (already turning)."));
+    }
+    return; 
+  }
+  /* --- TARGET: CASE 4A --- */
+  // CASE 4A: PHỤC HỒI CUA TRÁI (0100) (Hoạt động bình thường)
+  else if (!s1 && s2 && !s3 && !s4) {
+      lostLineStartTime = 0; if (DEBUG_PRINT) Serial.println(F(" | CASE 4A: PHUC HOI TRAI (0100)! Re trai nhe...")); stabilityCounter = 0;
+      setLeftMotors(-100); setRightMotors(180); previous_error = -0.8;
+  }
+  // CASE 4B: PHỤC HỒI CUA PHẢI (0010) (Hoạt động bình thường)
+  else if (!s1 && !s2 && s3 && !s4) {
+      lostLineStartTime = 0; if (DEBUG_PRINT) Serial.println(F(" | CASE 4B: PHUC HOI PHAI (0010)! Re phai nhe...")); stabilityCounter = 0;
+      setLeftMotors(180); setRightMotors(-100); previous_error = 0.8;
+  }
+  /* --- TARGET: CASE 4C --- */
+  // CASE 4C: PHỤC HỒI CUA TRÁI CỰC GẮT (1000) (Tự động tắt trong 10s)
+  else if (s1 && !s2 && !s3 && !s4) {
+    lostLineStartTime = 0; if (DEBUG_PRINT) Serial.println(F(" | CASE 4C: PHUC HOI TRAI (1000)! Re trai GAT (Xoay)...")); stabilityCounter = 0;
+    setLeftMotors(-200); 
+    setRightMotors(200);
+    previous_error = -1.5; 
+  }
+  // CASE 4D: PHỤC HỒI CUA PHẢI CỰC GẮT (0001) (Tự động tắt trong 10s)
+  else if (!s1 && !s2 && !s3 && s4) {
+    lostLineStartTime = 0; if (DEBUG_PRINT) Serial.println(F(" | CASE 4D: PHUC HOI PHAI (0001)! Re phai GAT (Xoay)...")); stabilityCounter = 0;
+    setLeftMotors(200); 
+    setRightMotors(-200);
+    previous_error = 1.5; 
+  }
+  /* --- TARGET: CASE 5 --- */
+  // CASE 5: MẤT LINE (0000) (Hoạt động bình thường, sẽ kích hoạt khi !s2 && !s3)
+  else if (!s1 && !s2 && !s3 && !s4) {
+    stabilityCounter = 0;
+    if (lostLineStartTime == 0) {
+      lostLineStartTime = millis(); if (DEBUG_PRINT) Serial.print(F(" | CASE 5: VUA MAT LINE (0000)! Bat dau timeout..."));
+    }
+
+    if (millis() - lostLineStartTime > LOST_LINE_TIMEOUT) {
+      if (DEBUG_PRINT) Serial.println(F(" -> HET TIMEOUT! Chuyen sang TIM KIEM XOAY TRON."));
+      int searchTurnSpeed = 160;
+      if (previous_error < -0.5) { 
+        if (DEBUG_PRINT) Serial.println(F(" (Xoay TRAI tim)"));
+        setLeftMotors(-searchTurnSpeed); setRightMotors(searchTurnSpeed);
+      } else if (previous_error > 0.5) {
+        if (DEBUG_PRINT) Serial.println(F(" (Xoay PHAI tim)"));
+        setLeftMotors(searchTurnSpeed); setRightMotors(-searchTurnSpeed);
+      } else {
+        if (DEBUG_PRINT) Serial.println(F(" (Khong ro huong, xoay PHAI)"));
+        setLeftMotors(searchTurnSpeed); setRightMotors(-searchTurnSpeed);
+      }
+    } else {
+      if (DEBUG_PRINT) Serial.print(F(" -> Dang timeout, chay theo huong cu...")); int recoverySpeed = 150;
+      if (previous_error < -0.5) { if (DEBUG_PRINT) Serial.println(F(" (Re trai tim)")); setLeftMotors(-recoverySpeed / 2); setRightMotors(recoverySpeed); }
+      else if (previous_error > 0.5) { if (DEBUG_PRINT) Serial.println(F(" (Re phai tim)")); setLeftMotors(recoverySpeed); setRightMotors(-recoverySpeed / 2); }
+      else { if (DEBUG_PRINT) Serial.println(F(" (Di thang tim)")); setLeftMotors(recoverySpeed); setRightMotors(recoverySpeed); }
+    }
+  }
+  /* --- TARGET: CASE 6 --- */
+  // CASE 6: BÌNH THƯỜNG - PID
+  else {
+    lostLineStartTime = 0; // Reset timer mất line vì đang thấy line
+    float pos_pid = 0.0;
+    
+    // Tính PID dựa trên grace period
+    if (isGracePeriod) {
+        // Chỉ dùng S2 và S3, trọng số 1000 và 2000
+        float sumError_pid = 0.0; 
+        pos_pid += eachError[1] * 1000.0;
+        pos_pid += eachError[2] * 2000.0;
+        sumError_pid = eachError[1] + eachError[2];
+        if (sumError_pid < 0.01) pos_pid = 1500.0; // Nếu không thấy S2, S3, giả định ở giữa
+        else pos_pid /= sumError_pid;
+        pre_pos = pos_pid; // Vẫn cập nhật pre_pos
+    } else {
+        // Dùng cả 4 cảm biến
+        pos_pid += eachError[0] * 0.0;
+        pos_pid += eachError[1] * 1000.0;
+        pos_pid += eachError[2] * 2000.0;
+        pos_pid += eachError[3] * 3000.0;
+        if (sumError_all < 0.01) pos_pid = pre_pos; 
+        else pos_pid /= sumError_all; 
+        pre_pos = pos_pid;
+    }
+
+    // Cập nhật stabilityCounter
+    if (pos_pid > 1100 && pos_pid < 1900) stabilityCounter++; else stabilityCounter = 0;
+    
+    // Chọn bộ PID Thích ứng
+    float current_initSpeed, current_Kp;
+    if (stabilityCounter > 20) { if (DEBUG_PRINT) Serial.print(F(" (Stable - Kp THAP) ")); current_initSpeed = 240; current_Kp = 40.0; }
+    else { if (DEBUG_PRINT) Serial.print(F(" (Unstable - Kp CAO) ")); current_initSpeed = 210; current_Kp = 100.0; }
+    
+    // Tính PID
+    error = (pos_pid - 1500.0) / 500.0; P = error; I = I + previous_I; I = constrain(I, -100.0, 100.0); D = error - previous_error;
+    PID_value = (current_Kp * P) + (Ki * I) + (Kd * D); previous_I = I; previous_error = error;
+    
+    // Tính tốc độ động cơ
+    int left_motor_speed = constrain(current_initSpeed + PID_value, -255, 255); int right_motor_speed = constrain(current_initSpeed - PID_value, -255, 255);
+    
+    // Điều khiển động cơ
+    setLeftMotors(left_motor_speed); setRightMotors(right_motor_speed);
+    
+    // In debug
+    if (DEBUG_PRINT) { Serial.print(F(" | CASE 6: PID | Pos: ")); Serial.print(pos_pid); Serial.print(F(" | Err: ")); Serial.print(error);
+      Serial.print(F(" | PID: ")); Serial.print(PID_value); Serial.print(F(" | L/R: ")); Serial.print(left_motor_speed); Serial.print(F("/")); Serial.println(right_motor_speed); }
+  }
+} // Kết thúc hàm linetracingMode
+
+
+// 3. Kiểm tra cảm biến siêu âm
+float checkUltrasonicDistance() {
+  digitalWrite(ULTRA_TRIG_PIN, LOW); delayMicroseconds(2);
+  digitalWrite(ULTRA_TRIG_PIN, HIGH); delayMicroseconds(10);
+  digitalWrite(ULTRA_TRIG_PIN, LOW);
+  long duration = pulseIn(ULTRA_ECHO_PIN, HIGH, 50000); // 50ms timeout
+  float distance = duration * 0.034 / 2.0;
+  if (duration == 0 || distance <= 0) {
+    return 999.0;
+  } else {
+    return distance;
+  }
+}
+
+// Hàm quét siêu âm xung quanh và quyết định hướng rẽ
+bool scanSurroundings() {
+    float distLeft = 999.0;
+    float distRight = 999.0;
+    if (DEBUG_PRINT) Serial.println(F("   Scanning surroundings..."));
+    myServo.write(SCAN_LEFT);
+    delay(SCAN_DELAY); 
+    distLeft = checkUltrasonicDistance();
+    if (DEBUG_PRINT) { Serial.print(F("     Left distance: ")); Serial.println(distLeft); }
+    myServo.write(SCAN_RIGHT);
+    delay(SCAN_DELAY);
+    distRight = checkUltrasonicDistance();
+    if (DEBUG_PRINT) { Serial.print(F("     Right distance: ")); Serial.println(distRight); }
+    myServo.write(SCAN_CENTER);
+    delay(SCAN_DELAY / 2); 
+    if (distRight > distLeft) {
+        if (DEBUG_PRINT) Serial.println(F("     Decision: Turn RIGHT first."));
+        return true; 
+    } else {
+        if (DEBUG_PRINT) Serial.println(F("     Decision: Turn LEFT first."));
+        return false; 
+    }
+}
+
+// Hàm thực hiện các bước tránh vật cản (Dựa vào avoidTurnRight)
+void performAvoidance() {
+    unsigned long currentTime = millis();
+    switch (avoidState) {
+        case 1: 
+            if (avoidTurnRight) {
+                 if (DEBUG_PRINT) Serial.println(F(" | AVOID STATE 1: Turning RIGHT (chosen)..."));
+                 setLeftMotors(TURN_SPEED); setRightMotors(-TURN_SPEED);
             } else {
-                clearCanvas();
+                 if (DEBUG_PRINT) Serial.println(F(" | AVOID STATE 1: Turning LEFT (chosen)..."));
+                 setLeftMotors(-TURN_SPEED); setRightMotors(TURN_SPEED);
             }
-            drawGrid();
-            if (drawCar) {
-                drawCarAtCurrentInitialPosition();
+            avoidStartTime = currentTime;
+            avoidState = 11;
+            break;
+        case 11: 
+            if (currentTime - avoidStartTime > TURN_DURATION) {
+                 if (DEBUG_PRINT) Serial.println(F("   -> Initial Turn Complete."));
+                 stopMotorsAndLed(); delay(100);
+                 avoidState = 2; 
             }
-        }
-
-        // --- LỊCH SỬ (UNDO/REDO) ---
-        function saveHistory() {
-            history.splice(historyIndex + 1);
-            history.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
-            historyIndex++;
-            updateUndoRedoButtons();
-        }
-
-        function undo() {
-            if (historyIndex > 0) {
-                historyIndex--;
-                ctx.putImageData(history[historyIndex], 0, 0);
-                drawGrid();
-                drawCarAtCurrentInitialPosition();
-                updateUndoRedoButtons();
+            break;
+        case 2: 
+            if (DEBUG_PRINT) Serial.println(F(" | AVOID STATE 2: Going STRAIGHT..."));
+            setLeftMotors(AVOID_SPEED); setRightMotors(AVOID_SPEED);
+            avoidStartTime = currentTime;
+            avoidState = 22;
+            break;
+        case 22: 
+             if (currentTime - avoidStartTime > STRAIGHT_DURATION) {
+                 if (DEBUG_PRINT) Serial.println(F("   -> Go STRAIGHT Complete."));
+                 stopMotorsAndLed(); delay(100);
+                 avoidState = 3; 
             }
-        }
-
-        function redo() {
-            if (historyIndex < history.length - 1) {
-                historyIndex++;
-                ctx.putImageData(history[historyIndex], 0, 0);
-                drawGrid();
-                drawCarAtCurrentInitialPosition();
-                updateUndoRedoButtons();
-            }
-        }
-
-        function updateUndoRedoButtons() {
-            undoButton.disabled = (historyIndex <= 0);
-            redoButton.disabled = (historyIndex >= history.length - 1);
-        }
-        
-        function resetHistory() {
-            history = [];
-            historyIndex = -1;
-            clearCanvas();
-        }
-        
-        // --- VẼ BẢN ĐỒ MẶC ĐỊNH (V7) ---
-        function loadDefaultMap() {
-            clearCanvas();
-            
-            setupLineStyle();
-            ctx.lineWidth = 20; 
-            
-            // Đường thẳng dưới cùng
-            ctx.beginPath();
-            ctx.moveTo(50, 750);
-            ctx.lineTo(1150, 750);
-            ctx.stroke();
-            
-            // 3 đường dọc (Ngã ba 0111)
-            ctx.beginPath();
-            ctx.moveTo(250, 750);
-            ctx.lineTo(250, 450);
-            ctx.stroke();
-            drawTriangleJunction(250, 750); // Ngã ba 1
-
-            ctx.beginPath();
-            ctx.moveTo(550, 750);
-            ctx.lineTo(550, 450);
-            ctx.stroke();
-            drawTriangleJunction(550, 750); // Ngã ba 2
-            
-            ctx.beginPath();
-            ctx.moveTo(850, 750);
-            ctx.lineTo(850, 450);
-            ctx.stroke();
-            drawTriangleJunction(850, 750); // Ngã ba 3 (Đây là chỗ rẽ phải)
-            
-            // Đường ngang (chỗ rẽ phải)
-            ctx.beginPath();
-            ctx.moveTo(850, 450);
-            ctx.lineTo(1150, 450);
-            ctx.stroke();
-            
-            // Đường dọc (lên ngã tư)
-            ctx.beginPath();
-            ctx.moveTo(1150, 750);
-            ctx.lineTo(1150, 150);
-            ctx.stroke();
-            
-            // Ngã tư (chỗ rẽ trái)
-            ctx.beginPath();
-            ctx.moveTo(1150, 150);
-            ctx.lineTo(800, 150);
-            ctx.stroke();
-            
-            // Đường cong (sau ngã tư)
-            ctx.beginPath();
-            ctx.moveTo(800, 150);
-            ctx.arcTo(600, 150, 600, 350, 100); 
-            ctx.lineTo(600, 400); 
-            ctx.stroke();
-            
-            // Đường tam giác (1001)
-            ctx.beginPath();
-            ctx.moveTo(600, 400);
-            ctx.lineTo(400, 400); // Đường ngang
-            ctx.stroke();
-            drawTriangleJunction(500, 400, false); 
-            
-            // Đường ngang cuối (sau 1001)
-            ctx.beginPath();
-            ctx.moveTo(400, 400);
-            ctx.lineTo(100, 400);
-            ctx.stroke();
-            
-            // Cua cuối đường
-            ctx.beginPath();
-            ctx.moveTo(100, 400);
-            ctx.arcTo(50, 400, 50, 350, 50);
-            ctx.lineTo(50, 200); // Cụt (kết thúc)
-            ctx.stroke();
-
-            // Đặt lại vị trí xe
-            initialCarX = 100;
-            initialCarY = 750;
-            initialCarAngle = -Math.PI / 2; 
-            
-            saveHistory(); 
-            redrawAll(true);
-        }
-        
-        function drawTriangleJunction(x, y, vertical = true) {
-            ctx.save();
-            ctx.beginPath();
-            setupLineStyle();
-            ctx.lineWidth = 10;
-            if (vertical) {
-                ctx.moveTo(x - 20, y - 20);
-                ctx.lineTo(x, y);
-                ctx.lineTo(x + 20, y - 20);
+            break;
+        case 3: 
+             if (avoidTurnRight) { 
+                 if (DEBUG_PRINT) Serial.println(F(" | AVOID STATE 3: Turning LEFT (opposite)..."));
+                 setLeftMotors(-TURN_SPEED); setRightMotors(TURN_SPEED);
             } else { 
-                ctx.moveTo(x - 20, y - 20);
-                ctx.lineTo(x, y);
-                ctx.lineTo(x - 20, y + 20);
+                 if (DEBUG_PRINT) Serial.println(F(" | AVOID STATE 3: Turning RIGHT (opposite)..."));
+                 setLeftMotors(TURN_SPEED); setRightMotors(-TURN_SPEED);
             }
-            ctx.stroke();
-            ctx.restore();
-        }
-        
-
-        // --- QUẢN LÝ CHẾ ĐỘ VÀ CÔNG CỤ ---
-        function resetDrawState() {
-            drawState.clickCount = 0;
-            drawState.p1 = null;
-            drawState.p2 = null;
-            previewMapData = null; 
-            isDrawing = false; 
-            lineStartPoint = null;
-        }
-
-        function setDrawTool(tool) {
-            currentDrawTool = tool;
-            resetDrawState();
-            
-            toolFreehand.disabled = (tool === 'freehand');
-            toolLine.disabled = (tool === 'line');
-            toolArc.disabled = (tool === 'arc');
-            toolTriangle.disabled = (tool === 'triangle');
-            toolRect.disabled = (tool === 'rect');
-            toolEraser.disabled = (tool === 'eraser');
-            
-            canvas.classList.remove('draw-mode-freehand', 'draw-mode-line', 'draw-mode-rect', 'draw-mode-eraser');
-            if (tool === 'freehand') canvas.classList.add('draw-mode-freehand');
-            else if (tool === 'eraser') canvas.classList.add('draw-mode-eraser');
-            else if (tool === 'rect') canvas.classList.add('draw-mode-rect');
-            else canvas.classList.add('draw-mode-line'); 
-        }
-        
-        function setMode(mode) {
-            currentMode = mode;
-            isRunning = false; 
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId);
-                animationFrameId = null;
+            avoidStartTime = currentTime;
+            avoidState = 33;
+            break;
+        case 33: 
+            if (currentTime - avoidStartTime > TURN_DURATION) {
+                 if (DEBUG_PRINT) Serial.println(F("   -> Second Turn Complete."));
+                 stopMotorsAndLed(); delay(100);
+                 avoidState = 4; 
             }
+            break;
+        case 4: 
+             if (DEBUG_PRINT) Serial.println(F(" | AVOID STATE 4: Searching for LINE..."));
+             setLeftMotors(SEARCH_SPEED); setRightMotors(SEARCH_SPEED);
+             avoidStartTime = currentTime;
+             avoidState = 44;
+        case 44: 
+            bool lineDetected = false;
+            if (DEBUG_PRINT) Serial.print(F("   Searching... Sensors: "));
+            for (int i = 0; i < 4; i++) { int val = analogRead(sens[i]); if (DEBUG_PRINT) { Serial.print(val); Serial.print(" "); }
+                 if (val > threshold_for_turn) lineDetected = true; }
+            if (DEBUG_PRINT) Serial.println();
+
+            if (lineDetected) { 
+                 if (DEBUG_PRINT) Serial.println(F("   -> LINE FOUND! Avoidance complete."));
+                 stopMotorsAndLed(); delay(100);
+                 isAvoidingObstacle = false; avoidState = 0;
+                 previous_error = 0; previous_I = 0; pre_pos = 1500.0; stabilityCounter = 0;
+            }
+            else if (currentTime - avoidStartTime > SEARCH_TIMEOUT) { 
+                 if (DEBUG_PRINT) Serial.println(F("   -> SEARCH TIMEOUT! Stopping."));
+                 stopMotorsAndLed();
+                 isAvoidingObstacle = false; avoidState = 0;
+                 robotState = 0; 
+            }
+            break;
+    }
+}
+
+
+/*
+ * =================================================================================
+ * /* --- TARGET: HÀM SETUP VÀ LOOP CHÍNH --- */
+ * HÀM SETUP VÀ LOOP CHÍNH
+ * =================================================================================
+ */
+
+void setup() {
+  Serial.begin(9600);
+  Serial.println(F("--- KHOI DONG XE DÒ LINE (V36 - Don Gian Comment) ---")); // Đổi tên V36
+
+  pinMode(ULTRA_TRIG_PIN, OUTPUT);
+  pinMode(ULTRA_ECHO_PIN, INPUT);
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, LOW);
+
+  myServo.attach(SERVO_PIN);
+  myServo.write(SCAN_CENTER); 
+
+  manual_calibration(); 
+
+  // Bắt đầu đếm 10 giây
+  programStartTime = millis(); 
+  
+  robotState = 1; // Tự động BẬT
+  Serial.println(F("Da hieu chinh xong. Tu dong BAT XE. (Grace Period 10s)"));
+
+  stopMotorsAndLed(); // Tắt LED ban đầu
+}
+
+void loop() {
+  // Ưu tiên tránh vật cản nếu đang trong quá trình
+  if (isAvoidingObstacle) {
+      digitalWrite(LED_BUILTIN, HIGH);
+      performAvoidance();
+      delay(10);
+      return;
+  }
+
+  if (robotState == 0) { stopMotorsAndLed(); return; }
+
+  digitalWrite(LED_BUILTIN, HIGH);
+
+  // CASE 1: VAT CAN -> Quét và Bắt đầu tránh chữ U
+  float currentDistance = checkUltrasonicDistance(); 
+  if (currentDistance < OBSTACLE_DISTANCE) {
+    
+    // Chỉ bắt đầu tránh nếu chưa tránh và không đang xoay
+    if (!isAvoidingObstacle && !isTurning) {
+        if (DEBUG_PRINT) { Serial.print(F("CASE 1: VAT CAN o phia truoc (")); Serial.print(currentDistance); Serial.println(F("cm)! Bat dau quet...")); }
+        stopMotorsAndLed(); 
+        delay(200);
+        avoidTurnRight = scanSurroundings(); 
+        isAvoidingObstacle = true; 
+        avoidState = 1;         
+    } else if (DEBUG_PRINT && isTurning){ 
+         Serial.println(F("CASE 1: VAT CAN! Ignored (turning)."));
+         stopMotorsAndLed(); 
+    }
+  }
+  // Nếu không có vật cản và không đang tránh, chạy logic dò line bình thường
+  else {
+    linetracingMode();
+  }
+  delay(10);
+}
+</code></pre>
+            </div>
+        </div>
+
+    </main>
+    
+    <script>
+        let originalCodeHTML = '';
+        
+        function escapeRegExp(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& nghĩa là toàn bộ chuỗi khớp
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            originalCodeHTML = document.getElementById('code-content').innerHTML;
+            renderLogicChart();
+        });
+
+        function scrollToCode(searchText) {
+            const codeEl = document.getElementById('code-content');
             
-            canvas.classList.remove('draw-mode-freehand', 'draw-mode-line', 'draw-mode-rect', 'draw-mode-eraser', 'place-car-mode', 'simulate-mode');
+            // Đặt lại HTML về gốc để xóa highlight cũ
+            codeEl.innerHTML = originalCodeHTML;
             
-            drawButton.disabled = false;
-            placeCarButton.disabled = false;
-            simulateButton.disabled = false;
-            stopButton.disabled = true;
-            clearMapButton.disabled = false;
-            resetCarButton.disabled = false;
-            saveMapButton.disabled = false;
-            loadMapButton.disabled = false;
-            loadDefaultMapButton.disabled = false;
-            simulationOptions.style.display = 'none'; 
-            
-            if (mode === 'draw') {
-                drawingTools.style.display = 'flex'; 
-                drawButton.disabled = true;
+            // Chuẩn bị searchText để dùng trong RegExp
+            // Chúng ta cần tìm `searchText` nhưng nó ở trong comment `/* --- TARGET: ... --- */`
+            const fullSearchText = `/* --- TARGET: ${searchText} --- */`;
+            const safeSearchText = escapeRegExp(fullSearchText);
+            const regex = new RegExp(safeSearchText, 'g');
+
+            let targetFound = false;
+
+            // Thay thế text tìm thấy bằng span highlight
+            const newHTML = originalCodeHTML.replace(regex, (match) => {
+                targetFound = true;
+                return `<span id="scroll-target" class="highlight">${match}</span>`;
+            });
+
+            if (targetFound) {
+                codeEl.innerHTML = newHTML;
+                const target = document.getElementById('scroll-target');
                 
-                if (mapImageData) { 
-                     ctx.putImageData(mapImageData, 0, 0);
-                     mapImageData = null; 
-                } 
-                
-                redrawAll(true);
-                setDrawTool(currentDrawTool); 
-                updateUndoRedoButtons(); 
-            } else if (mode === 'place_car') {
-                drawingTools.style.display = 'none'; 
-                canvas.classList.add('place-car-mode');
-                placeCarButton.disabled = true;
-                redrawAll(true);
-                ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-                ctx.font = "16px Inter";
-                ctx.textAlign = "center";
-                ctx.fillText("Click và Kéo để đặt vị trí và hướng xe. Thả chuột để hoàn tất.", canvas.width / 2, 30);
-            } else if (mode === 'simulate') {
-                drawingTools.style.display = 'none'; 
-                simulationOptions.style.display = 'flex'; 
-                canvas.classList.add('simulate-mode');
-                simulateButton.disabled = true;
-                stopButton.disabled = false;
-                drawButton.disabled = false;
-                placeCarButton.disabled = true;
-                clearMapButton.disabled = true; 
-                saveMapButton.disabled = true;
-                loadMapButton.disabled = true;
-                loadDefaultMapButton.disabled = true;
-
-                redrawAll(false);
-                mapImageData = ctx.getImageData(0, 0, canvas.width, canvas.height); 
-                
-                car.reset();
-                CarBrain.reset(); 
-                isRunning = true;
-                simulationLoop();
-            }
-        }
-        
-        function drawCarAtCurrentInitialPosition() {
-            const tempX = car.x;
-            const tempY = car.y;
-            const tempAngle = car.angle;
-            
-            car.x = initialCarX;
-            car.y = initialCarY;
-            car.angle = initialCarAngle;
-            car.readSensors(); 
-            car.draw();
-            
-            car.x = tempX;
-            car.y = tempY;
-            car.angle = tempAngle;
-        }
-
-        // --- GÁN SỰ KIỆN CHO CÁC NÚT ---
-        drawButton.addEventListener('click', () => setMode('draw'));
-        placeCarButton.addEventListener('click', () => setMode('place_car'));
-        simulateButton.addEventListener('click', () => setMode('simulate'));
-        stopButton.addEventListener('click', () => setMode('draw')); 
-
-        resetCarButton.addEventListener('click', () => {
-            isRunning = false;
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId);
-                animationFrameId = null;
-            }
-            CarBrain.reset();
-            redrawAll(true);
-
-            if (currentMode === 'simulate') {
-                redrawAll(false);
-                mapImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                car.reset(); 
-                isRunning = true;
-                simulationLoop();
-            }
-        });
-
-        clearMapButton.addEventListener('click', () => {
-            if (currentMode !== 'simulate') { 
-                if (confirm('Bạn có chắc muốn xóa toàn bộ bản đồ (để vẽ map mới)?')) {
-                    mapImageData = null;
-                    initialCarX = 100;
-                    initialCarY = 750; 
-                    initialCarAngle = -Math.PI / 2;
-                    resetHistory(); 
-                    saveHistory(); 
-                    redrawAll(true);
-                }
-            }
-        });
-        
-        loadDefaultMapButton.addEventListener('click', () => {
-            if (currentMode !== 'simulate') {
-                if (confirm('Tải lại bản đồ V29 sẽ xóa bản đồ hiện tại của bạn. Bạn có chắc?')) {
-                    resetHistory();
-                    loadDefaultMap();
-                }
-            }
-        });
-
-        toolFreehand.addEventListener('click', () => setDrawTool('freehand'));
-        toolLine.addEventListener('click', () => setDrawTool('line'));
-        toolArc.addEventListener('click', () => setDrawTool('arc'));
-        toolTriangle.addEventListener('click', () => setDrawTool('triangle'));
-        toolRect.addEventListener('click', () => setDrawTool('rect'));
-        toolEraser.addEventListener('click', () => setDrawTool('eraser'));
-        
-        toggleGridButton.addEventListener('click', () => {
-            isGridVisible = !isGridVisible;
-            toggleGridButton.textContent = isGridVisible ? "Ẩn Lưới" : "Hiện Lưới";
-            toggleGridButton.classList.toggle('bg-blue-200', isGridVisible);
-            redrawAll(true);
-        });
-        lineWidthSlider.addEventListener('input', (e) => {
-            const width = parseInt(e.target.value, 10);
-            LINE_WIDTH = width;
-            ERASER_WIDTH = width + 2;
-        });
-        
-        carSpeedSlider.addEventListener('input', (e) => {
-            const speed = parseFloat(e.target.value);
-            car.speed = speed;
-            carSpeedValue.textContent = speed.toFixed(1);
-        });
-
-        undoButton.addEventListener('click', undo);
-        redoButton.addEventListener('click', redo);
-        
-        saveMapButton.addEventListener('click', () => {
-            if (currentMode === 'simulate') return;
-            try {
-                const mapData = history[historyIndex];
-                const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = canvas.width;
-                tempCanvas.height = canvas.height;
-                tempCanvas.getContext('2d').putImageData(mapData, 0, 0);
-                
-                const dataUrl = tempCanvas.toDataURL();
-                
-                navigator.clipboard.writeText(dataUrl).then(() => {
-                    alert("Đã sao chép dữ liệu bản đồ vào clipboard!");
-                }, () => {
-                    alert("Không thể sao chép tự động. Vui lòng thử lại.");
-                });
-            } catch (e) {
-                alert("Lỗi khi lưu bản đồ: " + e.message);
-            }
-        });
-
-        loadMapButton.addEventListener('click', () => {
-            if (currentMode === 'simulate') return;
-            const dataUrl = prompt("Dán (Paste) chuỗi dữ liệu bản đồ (Base64) vào đây:");
-            if (dataUrl) {
-                const img = new Image();
-                img.onload = function() {
-                    clearCanvas();
-                    ctx.drawImage(img, 0, 0);
-                    saveHistory();
-                    redrawAll(true);
-                };
-                img.onerror = function() {
-                    alert("Dữ liệu bản đồ không hợp lệ.");
-                };
-                img.src = dataUrl;
-            }
-        });
-
-
-        // --- GÁN SỰ KIỆN VẼ BẰNG CHUỘT ---
-        function getMousePos(evt) {
-            const rect = canvas.getBoundingClientRect();
-            return {
-                x: evt.clientX - rect.left,
-                y: evt.clientY - rect.top
-            };
-        }
-        
-        function setupLineStyle() {
-            ctx.strokeStyle = LINE_COLOR;
-            ctx.lineWidth = LINE_WIDTH;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-        }
-        
-        function setupEraserStyle() {
-            ctx.strokeStyle = BACKGROUND_COLOR;
-            ctx.lineWidth = ERASER_WIDTH;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-        }
-
-        function drawArc(p1, p2, p3) {
-            setupLineStyle();
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.quadraticCurveTo(p2.x, p2.y, p3.x, p3.y);
-            ctx.stroke();
-        }
-        function drawTriangle(p1, p2, p3) {
-            setupLineStyle();
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.lineTo(p2.x, p2.y);
-            ctx.lineTo(p3.x, p3.y);
-            ctx.closePath(); 
-            ctx.stroke();
-        }
-        function drawRect(p1, p2) {
-            setupLineStyle();
-            ctx.strokeRect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
-        }
-
-        canvas.addEventListener('mousedown', (e) => {
-            const pos = getMousePos(e);
-            
-            if (currentMode === 'draw') {
-                if (currentDrawTool === 'freehand' || currentDrawTool === 'eraser') {
-                    isDrawing = true;
-                    (currentDrawTool === 'eraser' ? setupEraserStyle() : setupLineStyle());
-                    ctx.beginPath();
-                    ctx.moveTo(pos.x, pos.y);
-                    previewMapData = ctx.getImageData(0, 0, canvas.width, canvas.height); 
-                } else if (currentDrawTool === 'line' || currentDrawTool === 'rect') {
-                    isDrawing = true;
-                    lineStartPoint = pos;
-                    previewMapData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                } else if (currentDrawTool === 'arc') {
-                    drawState.clickCount++;
-                    if (drawState.clickCount === 1) { 
-                        drawState.p1 = pos;
-                        previewMapData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    } else if (drawState.clickCount === 2) { 
-                        drawState.p2 = pos;
-                    } else if (drawState.clickCount === 3) { 
-                        ctx.putImageData(previewMapData, 0, 0); 
-                        drawGrid();
-                        drawArc(drawState.p1, drawState.p2, pos); 
-                        resetDrawState();
-                        saveHistory(); 
-                    }
-                } else if (currentDrawTool === 'triangle') {
-                    drawState.clickCount++;
-                    if (drawState.clickCount === 1) { 
-                        drawState.p1 = pos;
-                        previewMapData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    } else if (drawState.clickCount === 2) { 
-                        drawState.p2 = pos;
-                    } else if (drawState.clickCount === 3) { 
-                        ctx.putImageData(previewMapData, 0, 0); 
-                        drawGrid();
-                        drawTriangle(drawState.p1, drawState.p2, pos); 
-                        resetDrawState();
-                        saveHistory(); 
-                    }
-                }
-            } else if (currentMode === 'place_car') {
-                isDrawing = true; 
-                initialCarX = pos.x;
-                initialCarY = pos.y;
-                previewMapData = ctx.getImageData(0, 0, canvas.width, canvas.height); 
-            }
-        });
-
-        canvas.addEventListener('mousemove', (e) => {
-            const pos = getMousePos(e);
-
-            if (currentMode === 'place_car' && isDrawing) {
-                initialCarAngle = Math.atan2(pos.y - initialCarY, pos.x - initialCarX);
-                
-                ctx.putImageData(previewMapData, 0, 0);
-                drawGrid();
-                
-                ctx.beginPath();
-                ctx.moveTo(initialCarX, initialCarY);
-                ctx.lineTo(pos.x, pos.y);
-                ctx.strokeStyle = 'rgba(0, 0, 255, 0.5)';
-                ctx.lineWidth = 2;
-                ctx.setLineDash([5, 5]);
-                ctx.stroke();
-                ctx.setLineDash([]);
-                
-                drawCarAtCurrentInitialPosition(); 
-                return;
-            }
-
-            if (currentMode !== 'draw') return;
-            if (!isDrawing && drawState.clickCount === 0) return; 
-
-            if (isDrawing && (currentDrawTool === 'freehand' || currentDrawTool === 'eraser')) {
-                ctx.lineTo(pos.x, pos.y);
-                ctx.stroke();
-            } else if (isDrawing && currentDrawTool === 'line') {
-                ctx.putImageData(previewMapData, 0, 0);
-                drawGrid();
-                setupLineStyle();
-                ctx.beginPath();
-                ctx.moveTo(lineStartPoint.x, lineStartPoint.y);
-                ctx.lineTo(pos.x, pos.y);
-                ctx.stroke();
-            } else if (isDrawing && currentDrawTool === 'rect') {
-                ctx.putImageData(previewMapData, 0, 0);
-                drawGrid();
-                drawRect(lineStartPoint, pos);
-            } else if (currentDrawTool === 'arc') {
-                if (drawState.clickCount === 1) { 
-                    ctx.putImageData(previewMapData, 0, 0);
-                    drawGrid();
-                    setupLineStyle();
-                    ctx.beginPath();
-                    ctx.moveTo(drawState.p1.x, drawState.p1.y);
-                    ctx.lineTo(pos.x, pos.y);
-                    ctx.stroke();
-                } else if (drawState.clickCount === 2) { 
-                    ctx.putImageData(previewMapData, 0, 0);
-                    drawGrid();
-                    drawArc(drawState.p1, drawState.p2, pos); 
-                }
-            } else if (currentDrawTool === 'triangle') {
-                if (drawState.clickCount === 1) { 
-                    ctx.putImageData(previewMapData, 0, 0);
-                    drawGrid();
-                    setupLineStyle();
-                    ctx.beginPath();
-                    ctx.moveTo(drawState.p1.x, drawState.p1.y);
-                    ctx.lineTo(pos.x, pos.y);
-                    ctx.stroke();
-                } else if (drawState.clickCount === 2) { 
-                    ctx.putImageData(previewMapData, 0, 0);
-                    drawGrid();
-                    drawTriangle(drawState.p1, drawState.p2, pos); 
-                }
-            }
-        });
-
-        canvas.addEventListener('mouseup', (e) => {
-            const pos = getMousePos(e);
-            
-            if (currentMode === 'place_car') {
-                if (isDrawing) {
-                    isDrawing = false;
-                    initialCarAngle = Math.atan2(pos.y - initialCarY, pos.x - initialCarX);
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     
-                    ctx.putImageData(previewMapData, 0, 0);
-                    drawGrid();
-                    drawCarAtCurrentInitialPosition(); 
-                    previewMapData = null;
+                    // Xóa highlight sau 3 giây
+                    setTimeout(() => {
+                        codeEl.innerHTML = originalCodeHTML;
+                    }, 3000);
                 }
-                return;
+            } else {
+                // Nếu không tìm thấy, thử tìm hàm (fallback)
+                scrollToCodeFallback(searchText);
             }
-
-            if (currentMode !== 'draw' || !isDrawing) return;
-
-            if (currentDrawTool === 'freehand' || currentDrawTool === 'eraser') {
-                isDrawing = false;
-                ctx.beginPath(); 
-                saveHistory(); 
-            } else if (currentDrawTool === 'line') {
-                isDrawing = false;
-                ctx.putImageData(previewMapData, 0, 0); 
-                drawGrid();
-                setupLineStyle();
-                ctx.beginPath();
-                ctx.moveTo(lineStartPoint.x, lineStartPoint.y);
-                ctx.lineTo(pos.x, pos.y);
-                ctx.stroke(); 
-                
-                resetDrawState();
-                saveHistory(); 
-            } else if (currentDrawTool === 'rect') {
-                isDrawing = false;
-                ctx.putImageData(previewMapData, 0, 0); 
-                drawGrid();
-                drawRect(lineStartPoint, pos);
-                
-                resetDrawState();
-                saveHistory(); 
-            }
-        });
+        }
         
-        canvas.addEventListener('mouseleave', () => {
-            if (currentMode === 'place_car' && isDrawing) {
-                isDrawing = false;
-                if (previewMapData) {
-                    ctx.putImageData(previewMapData, 0, 0); 
-                    drawGrid();
-                }
-                drawCarAtCurrentInitialPosition(); 
-                previewMapData = null;
-            }
-
-            if (currentMode !== 'draw') return;
+        function scrollToCodeFallback(searchText) {
+            const codeEl = document.getElementById('code-content');
+            const safeSearchText = escapeRegExp(searchText);
+            const regex = new RegExp(safeSearchText, 'g');
+            let targetFound = false;
             
-            if (isDrawing) {
-                isDrawing = false;
-                if (previewMapData) {
-                    ctx.putImageData(previewMapData, 0, 0);
-                    drawGrid();
+             const newHTML = originalCodeHTML.replace(regex, (match) => {
+                targetFound = true;
+                return `<span id="scroll-target" class="highlight">${match}</span>`;
+            });
+            
+            if (targetFound) {
+                codeEl.innerHTML = newHTML;
+                const target = document.getElementById('scroll-target');
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    setTimeout(() => {
+                        codeEl.innerHTML = originalCodeHTML;
+                    }, 3000);
                 }
-                resetDrawState();
             }
-        });
+        }
 
-        // --- KHỞI TẠO ---
-        car.speed = parseFloat(carSpeedSlider.value);
-        LINE_WIDTH = parseInt(lineWidthSlider.value, 10);
-        ERASER_WIDTH = LINE_WIDTH + 2;
-        
-        setMode('draw'); 
-        setDrawTool('freehand'); 
-        
-        resetHistory();
-        loadDefaultMap(); // TẢI BẢN ĐỒ V29 MẶC ĐỊNH
+        function copyCode() {
+            const codeContent = document.getElementById('code-content').innerText;
+            const copyBtn = document.getElementById('copy-btn');
+            
+            const tempTextArea = document.createElement('textarea');
+            tempTextArea.value = codeContent;
+            document.body.appendChild(tempTextArea);
+            tempTextArea.select();
+            
+            try {
+                document.execCommand('copy');
+                copyBtn.innerText = 'Đã sao chép!';
+                copyBtn.classList.add('bg-green-600');
+                
+                setTimeout(() => {
+                    copyBtn.innerText = 'Sao chép Mã';
+                    copyBtn.classList.remove('bg-green-600');
+                }, 2000);
+            } catch (err) {
+                copyBtn.innerText = 'Lỗi!';
+                copyBtn.classList.add('bg-red-600');
+            }
+            
+            document.body.removeChild(tempTextArea);
+        }
 
+        function renderLogicChart() {
+            const ctx = document.getElementById('logicCasesChart').getContext('2d');
+            
+            const wrapText = (ctx, text, maxWidth) => {
+                if (text.length <= 16) return [text];
+                const words = text.split(' ');
+                let lines = [];
+                let currentLine = '';
+                for (let i = 0; i < words.length; i++) {
+                    let testLine = currentLine + words[i] + ' ';
+                    if (ctx.measureText(testLine).width > maxWidth && i > 0) {
+                        lines.push(currentLine.trim());
+                        currentLine = words[i] + ' ';
+                    } else {
+                        currentLine = testLine;
+                    }
+                }
+                lines.push(currentLine.trim());
+                return lines;
+            };
+
+            const chartData = {
+                labels: [
+                    'PID (CASE 6)',
+                    'Cua Gắt / Ngã Rẽ (CASE 3A, 3B)',
+                    'Phục Hồi Lệch Line (CASE 4A, 4B)',
+                    'Phục Hồi Lệch Nhiều (CASE 4C, 4D)',
+                    'Ngã Tư (CASE 2)',
+                    'Trường hợp đặc biệt (CASE 1.5 - 1001)',
+                    'Mất Line (CASE 5)'
+                ],
+                datasets: [{
+                    label: 'Mức độ ưu tiên / Tần suất xử lý',
+                    data: [1, 5, 4, 6, 7, 8, 3], 
+                    backgroundColor: [
+                        'rgba(54, 162, 235, 0.6)', // Blue
+                        'rgba(255, 159, 64, 0.6)', // Orange
+                        'rgba(75, 192, 192, 0.6)', // Teal
+                        'rgba(255, 206, 86, 0.6)', // Yellow
+                        'rgba(255, 99, 132, 0.6)',  // Red
+                        'rgba(153, 102, 255, 0.6)',// Purple
+                        'rgba(100, 100, 100, 0.6)' // Gray
+                    ],
+                    borderColor: [
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 159, 64, 1)',
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(255, 206, 86, 1)',
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(153, 102, 255, 1)',
+                        'rgba(100, 100, 100, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            };
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Mức độ ưu tiên (Giá trị cao hơn = Ưu tiên cao hơn)'
+                            },
+                            beginAtZero: true
+                        },
+                        y: {
+                            ticks: {
+                                autoSkip: false,
+                                callback: function(value, index, values) {
+                                    const label = this.getLabelForValue(value);
+                                    if (label.length > 25) {
+                                        return label.substring(0, 25) + '...';
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Phân loại các trường hợp logic dò line (CASEs)',
+                            font: {
+                                size: 18
+                            }
+                        },
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    label += `Ưu tiên ${context.raw}`;
+                                    return label;
+                                },
+                                title: function(context) {
+                                    return context[0].label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
     </script>
 </body>
 </html>
-
